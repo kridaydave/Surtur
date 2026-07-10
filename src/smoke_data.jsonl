@@ -1,0 +1,5 @@
+{"text": "Surtur confines gradient updates to the model periphery."}
+{"text": "The core logic engine stays frozen during alignment."}
+{"text": "Capability-preserving post-training runs on a single GPU."}
+{"text": "Only the final layers receive gradients under Surtur."}
+{"text": "Freezing the core preserves capabilities already earned."}

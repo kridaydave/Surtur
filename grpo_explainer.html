@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LF-GRPO — How Surtur's trainer works</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root{
+      --bg:oklch(16% 0.012 50); --bg-panel:oklch(20% 0.014 55); --bg-sunken:oklch(13% 0.010 50);
+      --ink:oklch(94% 0.012 80); --muted:oklch(68% 0.018 70); --faint:oklch(52% 0.018 65); --line:oklch(38% 0.020 60);
+      --ice:oklch(82% 0.090 215); --ice-deep:oklch(58% 0.100 220);
+      --ember:oklch(70% 0.160 50); --ember-bright:oklch(80% 0.150 55); --ember-deep:oklch(52% 0.150 38);
+      --max:1120px; --r:14px;
+    }
+    *,*::before,*::after{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:17px;line-height:1.65;-webkit-font-smoothing:antialiased;text-wrap:pretty}
+    body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:0.05;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+    h1,h2,h3{font-family:"Fraunces",Georgia,serif;font-weight:600;line-height:1.1;letter-spacing:-0.01em;margin:0;text-wrap:balance}
+    p{margin:0 0 1rem}
+    code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:0.86em;background:var(--bg-sunken);border:1px solid var(--line);border-radius:6px;padding:1px 6px;color:var(--ember-bright)}
+    .wrap{max-width:var(--max);margin:0 auto;padding:0 28px;position:relative;z-index:1}
+    .eyebrow{font-size:12px;letter-spacing:0.22em;text-transform:uppercase;color:var(--faint);font-weight:600}
+    nav{position:sticky;top:0;z-index:50;backdrop-filter:blur(10px);background:oklch(16% 0.012 50 / 0.82);border-bottom:1px solid var(--line)}
+    nav .wrap{display:flex;align-items:center;gap:22px;height:58px}
+    nav .brand{font-family:"Fraunces",serif;font-weight:600;font-size:18px}
+    nav .brand span{color:var(--ember)}
+    nav .links{margin-left:auto;display:flex;gap:16px;flex-wrap:wrap}
+    nav .links a{color:var(--muted);font-size:13px}
+    nav .links a:hover{color:var(--ink);text-decoration:none}
+
+    header.hero{padding:86px 0 64px}
+    .hero h1{font-size:clamp(40px,7vw,76px);margin:14px 0 16px}
+    .hero h1 em{font-style:italic;color:var(--ember)}
+    .hero .lede{font-size:19px;color:var(--muted);max-width:60ch}
+
+    section{padding:60px 0;border-top:1px solid var(--line)}
+    section>.wrap>h2{font-size:clamp(28px,4.5vw,42px);margin-bottom:8px}
+    section>.wrap>.sub{color:var(--muted);margin-bottom:34px;max-width:64ch}
+
+    .card{border:1px solid var(--line);border-radius:var(--r);background:var(--bg-panel);padding:22px 24px}
+    .note{border:1px dashed oklch(60% 0.12 50 / 0.7);background:oklch(22% 0.04 45);border-radius:var(--r);padding:20px 24px}
+    .note .eyebrow{color:var(--ember)}
+
+    /* ---- PIPELINE STEPPER ---- */
+    .pipe{display:flex;gap:0;overflow-x:auto;padding-bottom:8px}
+    .stage{flex:1 1 0;min-width:150px;position:relative;padding:0 10px}
+    .stage .box{border:1px solid var(--line);border-radius:var(--r);background:var(--bg-panel);padding:14px 14px;height:100%}
+    .stage .n{font-family:"Fraunces",serif;font-size:13px;color:var(--ember)}
+    .stage h3{font-size:15px;margin:4px 0 6px}
+    .stage p{font-size:12.5px;color:var(--muted);margin:0}
+    .stage:not(:last-child)::after{content:"";position:absolute;top:42px;right:-2px;width:14px;height:2px;background:var(--ember-deep)}
+    @media(max-width:760px){.pipe{flex-direction:column}.stage:not(:last-child)::after{display:none}.stage{margin-bottom:10px}}
+
+    /* ---- GRPO CYCLE (SVG) ---- */
+    .cycle-wrap{display:grid;grid-template-columns:1fr 1fr;gap:30px;align-items:center}
+    .cycle-legend div{display:flex;gap:12px;align-items:flex-start;margin-bottom:14px}
+    .cycle-legend .dot{flex:none;width:12px;height:12px;border-radius:50%;margin-top:6px}
+    .cycle-legend b{color:var(--ink)}
+    .cycle-legend span{color:var(--muted);font-size:14px}
+    @media(max-width:760px){.cycle-wrap{grid-template-columns:1fr}}
+
+    /* ---- REWARD CARDS ---- */
+    .rewards{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .rw{border:1px solid var(--line);border-radius:var(--r);background:var(--bg-sunken);padding:18px 20px}
+    .rw h4{margin:0 0 4px;font-size:14px;letter-spacing:0.04em;color:var(--ember-bright)}
+    .rw .tag{font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:0.1em}
+    .rw p{font-size:13.5px;color:var(--muted);margin:8px 0 0}
+    @media(max-width:760px){.rewards{grid-template-columns:1fr}}
+
+    /* ---- TWO-STAGE BAR ---- */
+    .stagebars{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+    .sb{border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;background:var(--bg-panel)}
+    .sb h4{margin:0 0 14px;font-size:15px}
+    .bar{height:14px;border-radius:7px;background:var(--bg-sunken);overflow:hidden;margin-bottom:8px;display:flex}
+    .bar .fmt{background:var(--ice)}
+    .bar .cor{background:var(--ember)}
+    .barlabel{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+
+    /* ---- LAYER STACK ---- */
+    .stack{display:flex;flex-direction:column-reverse;gap:4px;max-width:340px}
+    .layer{height:26px;border-radius:6px;display:flex;align-items:center;padding:0 12px;font-size:12px;border:1px solid var(--line)}
+    .layer.frozen{background:oklch(22% 0.05 220);color:var(--ice)}
+    .layer.fire{background:oklch(30% 0.10 45);color:var(--ember-bright);border-color:oklch(50% 0.12 50 / 0.6)}
+
+    .reveal{opacity:0;transform:translateY(22px);transition:opacity .7s ease,transform .7s ease}
+    .reveal.is-visible{opacity:1;transform:none}
+    footer{padding:54px 0 80px;border-top:1px solid var(--line);color:var(--faint);font-size:14px}
+    @media(prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}html{scroll-behavior:auto}}
+  </style>
+</head>
+<body>
+  <nav><div class="wrap">
+    <div class="brand">Sur<span>tu</span>r · LF-GRPO</div>
+    <div class="links">
+      <a href="#idea">Idea</a><a href="#pipeline">Pipeline</a><a href="#loop">Training loop</a>
+      <a href="#rewards">Rewards</a><a href="#stages">Two-stage</a><a href="#guard">Guardrail</a><a href="#layers">Layers</a>
+    </div>
+  </div></nav>
+
+  <header class="hero"><div class="wrap">
+    <div class="eyebrow reveal">Explainer · <code>all_in_one_grpo.py</code></div>
+    <h1 class="reveal">Teaching a small model to <em>reason</em><br>without burning its core</h1>
+    <p class="lede reveal">
+      LF-GRPO (Layer-Frozen GRPO) is the experiment behind Surtur. It trains a 3B model to solve
+      math on a single T4 GPU — but only lets gradients touch the <b>last few layers</b>. The core
+      stays frozen and insulated. This page walks through exactly how the script does it.
+    </p>
+  </div></header>
+
+  <!-- IDEA -->
+  <section id="idea"><div class="wrap">
+    <div class="eyebrow reveal">§1 · The big idea</div>
+    <h2 class="reveal">Confine the fire, freeze the core</h2>
+    <p class="sub reveal">
+      Normal fine-tuning backpropagates through <em>every</em> layer. That slowly erodes the model's
+      central reasoning ability — the research called it <b>"Central Engine Disruption."</b> LF-GRPO
+      instead restricts training to the behavioral periphery (the final layers) and proves, mid-training,
+      that the frozen core received <b>zero</b> gradient.
+    </p>
+    <div class="card reveal">
+      <p style="margin:0;color:var(--muted)">
+        The result that justified Surtur: layer-frozen training reached <b style="color:var(--ember-bright)">50%</b>
+        math accuracy vs <b>42%</b> for full-layer training — <em>and</em> it killed reward-hacking and
+        halved latency. Same model, same data, same GPU. The only difference was <b>where gradients were allowed to flow.</b>
+      </p>
+    </div>
+  </div></section>
+
+  <!-- PIPELINE -->
+  <section id="pipeline"><div class="wrap">
+    <div class="eyebrow reveal">§2 · The pipeline</div>
+    <h2 class="reveal">Seven stages, start to finish</h2>
+    <p class="sub reveal">Run top-to-bottom in a Colab notebook. Each box is one block of the script.</p>
+    <div class="pipe reveal">
+      <div class="stage"><div class="box"><div class="n">01</div><h3>Install</h3><p>Auto-installs unsloth, trl, vllm, peft on first Colab run.</p></div></div>
+      <div class="stage"><div class="box"><div class="n">02</div><h3>Prepare data</h3><p>Loads GSM8K, wraps each question in a system prompt, extracts the <code>####</code> answer.</p></div></div>
+      <div class="stage"><div class="box"><div class="n">03</div><h3>Load model</h3><p>Qwen2.5-3B in 4-bit via Unsloth; vLLM colocated for fast generation.</p></div></div>
+      <div class="stage"><div class="box"><div class="n">04</div><h3>Resolve layers</h3><p><code>last_4</code> → the final 4 layer indices. The rest are frozen.</p></div></div>
+      <div class="stage"><div class="box"><div class="n">05</div><h3>Attach LoRA</h3><p>Low-rank adapters on q/k/v/o/gate/up/down — but only on the chosen layers.</p></div></div>
+      <div class="stage"><div class="box"><div class="n">06</div><h3>Train + guard</h3><p>GRPO loop runs; a callback verifies frozen layers stay at 0 gradient.</p></div></div>
+      <div class="stage"><div class="box"><div class="n">07</div><h3>Save</h3><p>LoRA adapters saved; checkpoints copied to Google Drive.</p></div></div>
+    </div>
+  </div></section>
+
+  <!-- TRAINING LOOP -->
+  <section id="loop"><div class="wrap">
+    <div class="eyebrow reveal">§3 · Inside one GRPO step</div>
+    <h2 class="reveal">Groups, rewards, relative advantage</h2>
+    <p class="sub reveal">
+      GRPO needs <b>no critic model</b>. For each prompt it generates several answers, scores them, and
+      compares each answer to the <b>group average</b> — pushing up the ones that beat the average.
+    </p>
+    <div class="cycle-wrap reveal">
+      <svg viewBox="0 0 320 320" width="100%" style="max-width:340px" role="img" aria-label="GRPO cycle">
+        <defs>
+          <marker id="arw" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L6,3 L0,6 Z" fill="var(--ember)"/>
+          </marker>
+        </defs>
+        <circle cx="160" cy="160" r="120" fill="none" stroke="var(--line)" stroke-width="1.5" stroke-dasharray="4 5"/>
+        <path d="M270 160 A110 110 0 0 1 250 100" fill="none" stroke="var(--ember)" stroke-width="2.5" marker-end="url(#arw)"/>
+        <circle cx="160" cy="40" r="34" fill="var(--bg-panel)" stroke="var(--ice)" stroke-width="1.5"/>
+        <text x="160" y="38" text-anchor="middle" fill="var(--ink)" font-size="11" font-family="IBM Plex Sans">Prompt</text>
+        <text x="160" y="52" text-anchor="middle" fill="var(--faint)" font-size="9">× N times</text>
+        <circle cx="280" cy="160" r="34" fill="var(--bg-panel)" stroke="var(--ember)" stroke-width="1.5"/>
+        <text x="280" y="158" text-anchor="middle" fill="var(--ink)" font-size="11" font-family="IBM Plex Sans">Generate</text>
+        <text x="280" y="172" text-anchor="middle" fill="var(--faint)" font-size="9">N answers</text>
+        <circle cx="160" cy="280" r="34" fill="var(--bg-panel)" stroke="var(--ember)" stroke-width="1.5"/>
+        <text x="160" y="278" text-anchor="middle" fill="var(--ink)" font-size="11" font-family="IBM Plex Sans">Reward</text>
+        <text x="160" y="292" text-anchor="middle" fill="var(--faint)" font-size="9">score each</text>
+        <circle cx="40" cy="160" r="34" fill="var(--bg-panel)" stroke="var(--ice)" stroke-width="1.5"/>
+        <text x="40" y="158" text-anchor="middle" fill="var(--ink)" font-size="11" font-family="IBM Plex Sans">Advantage</text>
+        <text x="40" y="172" text-anchor="middle" fill="var(--faint)" font-size="9">(r−mean)/std</text>
+      </svg>
+      <div class="cycle-legend">
+        <div><span class="dot" style="background:var(--ice)"></span><div><b>1 · Prompt</b><br><span>Take one math question.</span></div></div>
+        <div><span class="dot" style="background:var(--ember)"></span><div><b>2 · Generate</b><br><span>Sample <code>num_generations = 4</code> completions (the "group").</span></div></div>
+        <div><span class="dot" style="background:var(--ember)"></span><div><b>3 · Reward</b><br><span>Each completion scored by the reward functions (§4).</span></div></div>
+        <div><span class="dot" style="background:var(--ice)"></span><div><b>4 · Advantage</b><br><span>Compare to the group: <code>A = (r − mean) / std</code>. Better-than-average answers are reinforced.</span></div></div>
+        <div><span class="dot" style="background:var(--ember-deep)"></span><div><b>5 · Update</b><br><span>One policy-gradient step on the <em>trainable</em> layers only — then repeat.</span></div></div>
+      </div>
+    </div>
+  </div></section>
+
+  <!-- REWARDS -->
+  <section id="rewards"><div class="wrap">
+    <div class="eyebrow reveal">§4 · The reward functions</div>
+    <h2 class="reveal">How "good" is measured</h2>
+    <p class="sub reveal">Every function shares the same shape: <code>(prompts, completions, target_answer) → list[float]</code>. They are combined and weighted (§5).</p>
+    <div class="rewards reveal">
+      <div class="rw"><div class="tag">format</div><h4>format_reward_fn</h4><p>1.0 for one clean <code>&lt;think&gt;</code> block; 0.3 multi-block; 0.2 unclosed; 0.0 none.</p></div>
+      <div class="rw"><div class="tag">correctness</div><h4>math_correctness_reward_fn</h4><p>Extracts the final number (after <code>&lt;/think&gt;</code> or <code>\boxed{}</code>) and checks it equals the target.</p></div>
+      <div class="rw"><div class="tag">p-grpo</div><h4>p_grpo_format_reward_fn</h4><p>Same as format, but <b>zeroed if the answer is wrong</b> — stops the model from "looking smart" while being wrong.</p></div>
+      <div class="rw"><div class="tag">step-grpo</div><h4>step_grpo_reward_fn</h4><p>If correct, reward decays by <code>0.99^steps</code> (steps = "wait/hmm/actually" tokens) and penalizes extra blocks. Rewards concise reasoning.</p></div>
+    </div>
+  </div></section>
+
+  <!-- TWO-STAGE -->
+  <section id="stages"><div class="wrap">
+    <div class="eyebrow reveal">§5 · Two-stage training</div>
+    <h2 class="reveal">Learn format first, then correctness</h2>
+    <p class="sub reveal">The combined reward blends format and correctness, but the weights <b>flip</b> after <code>stage_steps = 50</code>.</p>
+    <div class="stagebars reveal">
+      <div class="sb"><h4>Stage 1 · steps 0–50</h4>
+        <div class="bar"><div class="fmt" style="width:91%"></div><div class="cor" style="width:9%"></div></div>
+        <div class="barlabel"><span style="color:var(--ice)">format weight 1.0</span><span style="color:var(--ember)">correct 0.1</span></div>
+        <p style="font-size:13px;color:var(--muted);margin:10px 0 0">Primer: teach the model to wrap reasoning in <code>&lt;think&gt;…&lt;/think&gt;</code>.</p>
+      </div>
+      <div class="sb"><h4>Stage 2 · steps 51+</h4>
+        <div class="bar"><div class="fmt" style="width:17%"></div><div class="cor" style="width:83%"></div></div>
+        <div class="barlabel"><span style="color:var(--ice)">format weight 0.2</span><span style="color:var(--ember)">correct 1.0</span></div>
+        <p style="font-size:13px;color:var(--muted);margin:10px 0 0">Now optimize for actually getting the math right.</p>
+      </div>
+    </div>
+  </div></section>
+
+  <!-- GUARDRAIL -->
+  <section id="guard"><div class="wrap">
+    <div class="eyebrow reveal">§6 · The frozen-core guardrail</div>
+    <h2 class="reveal">Proof the core stayed asleep</h2>
+    <p class="sub reveal">
+      This is the heart of Surtur's "preservation" promise. A callback fires after the <b>first backward pass</b>
+      and inspects every parameter.
+    </p>
+    <div class="note reveal">
+      <div class="eyebrow">StepTrackerCallback · on_substep_end (step 0)</div>
+      <p style="margin:8px 0 0;color:var(--muted)">
+        For each parameter: is it frozen (<code>requires_grad = False</code>) or active? Sum the gradient norm of the
+        frozen ones. If <b>any</b> frozen parameter has gradient &gt; <code>1e-9</code>, the script raises:
+      </p>
+      <p style="margin:10px 0 0"><code>RuntimeError("Gradient insulation check failed: Frozen layers received gradients.")</code></p>
+      <p style="margin:10px 0 0;color:var(--muted)">
+        If all frozen gradients are exactly 0.0 → <b>"100% gradient insulation confirmed."</b> The core is proven untouched.
+        This is the exact guarantee your <code>config.py</code> is designed to feed.
+      </p>
+    </div>
+  </div></section>
+
+  <!-- LAYERS -->
+  <section id="layers"><div class="wrap">
+    <div class="eyebrow reveal">§7 · Resolving the layers</div>
+    <h2 class="reveal">From <code>last_4</code> to concrete indices</h2>
+    <p class="sub reveal">
+      The script turns a preset into a layer list — and this is <b>exactly the logic your <code>config.py</code> implements</b>,
+      generalised to any model depth.
+    </p>
+    <div class="cycle-wrap reveal">
+      <div class="stack">
+        <div class="layer fire">layer 27 · trainable (fire)</div>
+        <div class="layer fire">layer 26 · trainable (fire)</div>
+        <div class="layer fire">layer 25 · trainable (fire)</div>
+        <div class="layer fire">layer 24 · trainable (fire)</div>
+        <div class="layer frozen">layer 23 · frozen (core)</div>
+        <div class="layer frozen">layer 22 · frozen (core)</div>
+        <div class="layer frozen">…</div>
+        <div class="layer frozen">layer 0 · frozen (core)</div>
+      </div>
+      <div>
+        <p style="color:var(--muted)">For a 28-layer model, <code>last_4</code> resolves to:</p>
+        <p><code>list(range(num_layers − 4, num_layers))</code><br>→ <code>[24, 25, 26, 27]</code></p>
+        <p style="color:var(--muted)">LoRA is then attached only to those layers; every other layer's
+        <code>requires_grad</code> stays <code>False</code>. The same code accepts <code>"24,25,26,27"</code> or any
+        custom set — which is what your Surtur config module adds on top.</p>
+      </div>
+    </div>
+  </div></section>
+
+  <footer><div class="wrap">
+    <div class="brand" style="font-family:'Fraunces',serif;font-size:20px;color:var(--ink)">LF-GRPO</div>
+    <p style="margin:8px 0 0">Source: <code>Research/src/phase4/all_in_one_grpo.py</code> · the empirical basis for the Surtur roadmap.<br>
+    Companion module you built: <code>Surtur/src/config.py</code> (layer resolution + tests).</p>
+  </div></footer>
+
+  <script>
+    const items=document.querySelectorAll('.reveal');
+    const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('is-visible');io.unobserve(e.target)}})},{threshold:0.12});
+    items.forEach(el=>io.observe(el));
+  </script>
+</body>
+</html>

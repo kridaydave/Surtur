@@ -1,0 +1,17 @@
+# Surtur dependencies — pinned to the verified working set (2026-07-09)
+# Install:  pip install -r requirements.txt
+# NOTE: torch here is the CPU build (this dev box has no GPU).
+#       On the training machine install the CUDA build instead, e.g.:
+#       pip install torch --index-url https://download.pytorch.org/whl/cu126
+torch==2.12.0
+transformers==5.9.0
+trl==1.7.1
+accelerate==1.13.0
+datasets==4.8.5
+tokenizers==0.22.2
+numpy==2.4.3
+
+# Eval: MMLU / ARC / GSM8K are loaded directly from `datasets` and scored
+# with a small in-repo script (see src/eval_*.py). We do NOT use
+# lm-eval-harness — it has no Python 3.14 wheel and we need per-domain control
+# anyway (Gauge's per-domain retention table).

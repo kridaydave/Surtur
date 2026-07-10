@@ -1,0 +1,772 @@
+<!doctype html>
+<!--
+  ============================================================================
+  SURTUR — ROADMAP (single-file HTML)
+  ----------------------------------------------------------------------------
+  HOW TO READ THIS FILE (for the learner):
+    - <head>  = invisible setup: page title, fonts, and ALL the styling (<style>).
+    - <body>  = the visible content: every section you scroll through.
+    - <script> = a tiny bit of JavaScript at the bottom that fades sections in.
+  To view it: double-click this file. It opens in your browser. No server needed.
+  ============================================================================
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Surtur — Product Roadmap</title>
+
+  <!-- Fonts: Fraunces = characterful serif for big titles.
+       IBM Plex Sans = a humanist sans for body text (NOT the generic Inter). -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  />
+
+  <style>
+    /* ----------------------------------------------------------------------
+       1. THEME TOKENS
+       We define our colors ONCE here as CSS variables, then reuse them.
+       "oklch" is a modern color space that keeps hues perceptually even.
+       The palette is DERIVED FROM THE CONTENT, not a generic template:
+         - ICE   = the frozen core (layers 1–23)
+         - EMBER = the confined fire (layers 24–27, the trainable periphery)
+       ---------------------------------------------------------------------- */
+    :root {
+      --bg:        oklch(16% 0.012 50);   /* warm near-black page background */
+      --bg-panel:  oklch(20% 0.014 55);   /* slightly raised surface */
+      --bg-sunken: oklch(13% 0.010 50);   /* recessed surface */
+      --ink:       oklch(94% 0.012 80);   /* primary text */
+      --muted:     oklch(68% 0.018 70);   /* secondary text */
+      --faint:     oklch(52% 0.018 65);   /* tertiary / labels */
+      --line:      oklch(38% 0.020 60);   /* hairline borders */
+
+      --ice:        oklch(82% 0.090 215); /* frozen core accent */
+      --ice-deep:   oklch(58% 0.100 220);
+      --ember:      oklch(70% 0.160 50);  /* confined fire accent */
+      --ember-bright: oklch(80% 0.150 55);
+      --ember-deep: oklch(52% 0.150 38);
+
+      --max: 1120px;                       /* content column width */
+      --r: 14px;                           /* shared corner radius */
+    }
+
+    /* ----------------------------------------------------------------------
+       2. RESET + BASE
+       A tiny reset so browsers agree, then base typography.
+       ---------------------------------------------------------------------- */
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "IBM Plex Sans", system-ui, sans-serif;
+      font-size: 17px;
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+      text-wrap: pretty;
+    }
+
+    /* A faint forged-metal grain over everything (content-derived texture). */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.05;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+
+    h1, h2, h3 {
+      font-family: "Fraunces", Georgia, serif;
+      font-weight: 600;
+      line-height: 1.1;
+      letter-spacing: -0.01em;
+      margin: 0;
+      text-wrap: balance;
+    }
+    p { margin: 0 0 1rem; }
+    a { color: var(--ember-bright); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .wrap { max-width: var(--max); margin: 0 auto; padding: 0 28px; position: relative; z-index: 1; }
+
+    .eyebrow {
+      font-size: 12px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--faint);
+      font-weight: 600;
+    }
+
+    /* ----------------------------------------------------------------------
+       3. TOP NAV (sticky) — lets researchers jump between phases.
+       ---------------------------------------------------------------------- */
+    nav {
+      position: sticky; top: 0; z-index: 50;
+      backdrop-filter: blur(10px);
+      background: oklch(16% 0.012 50 / 0.82);
+      border-bottom: 1px solid var(--line);
+    }
+    nav .wrap { display: flex; align-items: center; gap: 22px; height: 58px; }
+    nav .brand { font-family: "Fraunces", serif; font-weight: 600; font-size: 18px; }
+    nav .brand span { color: var(--ember); }
+    nav .links { margin-left: auto; display: flex; gap: 18px; flex-wrap: wrap; }
+    nav .links a { color: var(--muted); font-size: 13px; letter-spacing: 0.03em; }
+    nav .links a:hover { color: var(--ink); text-decoration: none; }
+
+    /* ----------------------------------------------------------------------
+       4. HERO — the frozen-core / ember-periphery model cross-section.
+       ---------------------------------------------------------------------- */
+    header.hero { padding: 92px 0 72px; }
+    .hero-grid { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 56px; align-items: center; }
+    .hero h1 { font-size: clamp(48px, 8vw, 96px); margin: 14px 0 18px; }
+    .hero h1 em { font-style: italic; color: var(--ember); }
+    .hero .lede { font-size: 19px; color: var(--muted); max-width: 46ch; }
+
+    /* The model cross-section: a column of "layers". Lower = frozen core (ice),
+       upper band (24–27) = trainable fire (ember). Pure CSS, no images. */
+    .core {
+      position: relative;
+      height: 380px;
+      border-radius: var(--r);
+      border: 1px solid var(--line);
+      overflow: hidden;
+      background:
+        linear-gradient(180deg,
+          var(--ember-deep) 0%,
+          var(--ember) 14%,
+          oklch(40% 0.06 60) 30%,
+          oklch(30% 0.04 200) 60%,
+          var(--ice-deep) 100%);
+    }
+    .core .band-labels {
+      position: absolute; inset: 0; padding: 14px;
+      display: flex; flex-direction: column; justify-content: space-between;
+      font-size: 12px; letter-spacing: 0.06em;
+    }
+    .core .tag {
+      align-self: flex-start;
+      background: oklch(10% 0.02 50 / 0.7);
+      border: 1px solid var(--line);
+      padding: 5px 10px; border-radius: 999px;
+      backdrop-filter: blur(4px);
+    }
+    .core .tag.fire { color: var(--ember-bright); border-color: oklch(50% 0.12 50 / 0.6); }
+    .core .tag.ice { color: var(--ice); border-color: oklch(50% 0.08 215 / 0.6); }
+    .core .layer-no {
+      position: absolute; right: 14px; top: 22%;
+      font-family: "Fraunces", serif; font-size: 13px; color: var(--ember-bright);
+    }
+    /* Caption under the cross-section diagram */
+    .core-caption { font-size: 12.5px; color: var(--faint); margin-top: 12px; text-align: center; line-height: 1.5; }
+    .core-caption em { color: var(--muted); font-style: italic; }
+
+    /* ----------------------------------------------------------------------
+       5. GENERIC SECTION SCAFFOLD
+       ---------------------------------------------------------------------- */
+    section { padding: 64px 0; border-top: 1px solid var(--line); }
+    section > .wrap > h2 { font-size: clamp(30px, 4.5vw, 44px); margin-bottom: 8px; }
+    section > .wrap > .sub { color: var(--muted); margin-bottom: 36px; max-width: 62ch; }
+
+    /* The north-star metric callout */
+    .northstar {
+      margin-top: 30px;
+      border: 1px solid var(--line);
+      border-left: 3px solid var(--ember);
+      background: var(--bg-panel);
+      border-radius: var(--r);
+      padding: 26px 30px;
+    }
+    .northstar .metric { font-family: "Fraunces", serif; font-size: 22px; line-height: 1.5; }
+    .northstar .metric b { color: var(--ember); }
+    .northstar .metric i { color: var(--ice); font-style: normal; }
+
+    /* The blocker callout — styled like a sealed hatch, not a generic red box */
+    .blocker {
+      margin-top: 28px;
+      border: 1px dashed oklch(60% 0.12 50 / 0.7);
+      background: oklch(22% 0.04 45);
+      border-radius: var(--r);
+      padding: 24px 28px;
+    }
+    .blocker .eyebrow { color: var(--ember); }
+    .blocker strong { color: var(--ember-bright); }
+
+    /* ----------------------------------------------------------------------
+       6. PRINCIPLES — editorial numbered list
+       ---------------------------------------------------------------------- */
+    .principles { display: grid; gap: 0; margin-top: 12px; }
+    .principle {
+      display: grid; grid-template-columns: 64px 1fr; gap: 20px;
+      padding: 22px 0; border-bottom: 1px solid var(--line);
+      align-items: baseline;
+    }
+    .principle:last-child { border-bottom: none; }
+    .principle .num { font-family: "Fraunces", serif; font-size: 30px; color: var(--ember); }
+    .principle h3 { font-size: 21px; margin-bottom: 4px; }
+    .principle p { margin: 0; color: var(--muted); }
+
+    /* ----------------------------------------------------------------------
+       7. PHASE ARC — the P0→P4 timeline
+       ---------------------------------------------------------------------- */
+    .arc { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-top: 16px; }
+    .arc .node {
+      border: 1px solid var(--line);
+      border-radius: var(--r);
+      padding: 18px 16px;
+      background: var(--bg-panel);
+      position: relative;
+    }
+    .arc .node .pid { font-family: "Fraunces", serif; font-size: 30px; color: var(--ember); }
+    .arc .node h3 { font-size: 17px; margin: 4px 0 8px; }
+    .arc .node p { font-size: 13.5px; color: var(--muted); margin: 0; }
+    /* a connecting heat-bar under the arc */
+    .arc-bar { height: 3px; margin: 18px 6px 0; border-radius: 2px;
+      background: linear-gradient(90deg, var(--ice-deep), var(--ember)); }
+
+    /* ----------------------------------------------------------------------
+       8. PHASE DETAIL BLOCKS
+       ---------------------------------------------------------------------- */
+    .phase { padding: 56px 0; border-top: 1px solid var(--line); }
+    .phase .head { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 6px; }
+    .phase .head .pid { font-family: "Fraunces", serif; font-size: 40px; color: var(--ember); }
+    .phase .head h2 { font-size: clamp(28px, 4vw, 38px); }
+    .phase .question { color: var(--muted); font-style: italic; margin: 0 0 26px; }
+
+    .field { margin-bottom: 26px; }
+    .field > .label { font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--faint); margin-bottom: 8px; }
+    .field.problem p { font-size: 18px; }
+
+    /* Scope: three columns Must / Should / Won't */
+    .scope { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+    .scope .col { border: 1px solid var(--line); border-radius: var(--r); padding: 18px; background: var(--bg-sunken); }
+    .scope .col h4 { margin: 0 0 12px; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; }
+    .scope .col.must h4 { color: var(--ember-bright); }
+    .scope .col.should h4 { color: var(--ice); }
+    .scope .col.wont h4 { color: var(--faint); }
+    .scope .col ul { margin: 0; padding-left: 18px; }
+    .scope .col li { font-size: 14px; color: var(--muted); margin-bottom: 9px; }
+
+    /* DoD / success / kill — small framed notes */
+    .notes { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 8px; }
+    .note { border: 1px solid var(--line); border-radius: var(--r); padding: 18px 20px; background: var(--bg-panel); }
+    .note h4 { margin: 0 0 10px; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); }
+    .note.dod h4 { color: var(--ice); }
+    .note.kill h4 { color: var(--ember); }
+    .note ul { margin: 0; padding-left: 18px; }
+    .note li { font-size: 14px; color: var(--muted); margin-bottom: 7px; }
+
+    /* ----------------------------------------------------------------------
+       9. TABLES — acceptance / milestones / risks / not-building
+       ---------------------------------------------------------------------- */
+    .table-wrap { border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; margin-top: 8px; }
+    table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+    thead th {
+      text-align: left; background: var(--bg-sunken); color: var(--faint);
+      font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase;
+      padding: 14px 18px; border-bottom: 1px solid var(--line);
+    }
+    tbody td { padding: 14px 18px; border-bottom: 1px solid var(--line); color: var(--muted); vertical-align: top; }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody td:first-child { color: var(--ink); font-weight: 500; }
+    tbody tr:hover td { background: oklch(22% 0.014 55 / 0.5); }
+
+    /* ----------------------------------------------------------------------
+       10. REVEAL-ON-SCROLL (progressive enhancement)
+       ---------------------------------------------------------------------- */
+    .reveal { opacity: 0; transform: translateY(22px); transition: opacity .7s ease, transform .7s ease; }
+    .reveal.is-visible { opacity: 1; transform: none; }
+
+    footer { padding: 56px 0 80px; border-top: 1px solid var(--line); color: var(--faint); font-size: 14px; }
+    footer .brand { font-family: "Fraunces", serif; font-size: 20px; color: var(--ink); }
+
+    /* ----------------------------------------------------------------------
+       11. RESPONSIVE — stack columns on small screens
+       ---------------------------------------------------------------------- */
+    @media (max-width: 860px) {
+      .hero-grid { grid-template-columns: 1fr; }
+      .core { height: 300px; }
+      .arc { grid-template-columns: 1fr 1fr; }
+      .scope, .notes { grid-template-columns: 1fr; }
+      nav .links { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .reveal { opacity: 1; transform: none; transition: none; }
+      html { scroll-behavior: auto; }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- ===================== TOP NAV ===================== -->
+  <nav>
+    <div class="wrap">
+      <div class="brand">Sur<span>tu</span>r</div>
+      <div class="links">
+        <a href="#vision">Vision</a>
+        <a href="#blocker">Blocker</a>
+        <a href="#principles">Principles</a>
+        <a href="#arc">Phase arc</a>
+        <a href="#p0">P0–P4</a>
+        <a href="#risks">Risks</a>
+        <a href="#milestones">Milestones</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ===================== HERO ===================== -->
+  <header class="hero">
+    <div class="wrap hero-grid">
+      <div class="reveal">
+        <div class="eyebrow">EAL · Surtur</div>
+        <h1>Surtur — the <em>fire</em> kept at the edge</h1>
+        <p class="lede">
+          Epoch's spatial training &amp; capability-preservation runner. Post-training that
+          confines the fire of parameter optimization to the behavioral periphery
+          (the final ~10–15% of depth — e.g. layers 24–27 on a 28-layer model), keeping
+          the model's core logic engine frozen and insulated.
+        </p>
+        <div class="northstar">
+          <div class="metric">
+            Hold core-eval within <b>≤2%</b> of the frozen baseline while delivering a
+            measurable alignment gain — on <i>one GPU</i> at <b>≤30%</b> the compute.
+          </div>
+        </div>
+      </div>
+
+      <!-- The model cross-section: frozen core (bottom) → ember periphery (top). -->
+      <div class="core reveal" aria-label="Model layer cross-section: frozen core with trainable periphery at layers 24 to 27">
+        <div class="band-labels">
+          <div class="tag fire">Trainable fire · final ~10–15% of depth</div>
+          <div class="tag ice">Frozen core · insulated</div>
+        </div>
+        <div class="layer-no">↑ output</div>
+      </div>
+      <p class="core-caption">
+        Exact layer numbers shift with model size — the principle is <em>relative depth</em>, not fixed indices.
+      </p>
+    </div>
+  </header>
+
+  <!-- ===================== VISION ===================== -->
+  <section id="vision">
+    <div class="wrap">
+      <div class="eyebrow reveal">§1 · Vision &amp; north-star</div>
+      <h2 class="reveal">Make capability-preserving post-training a cheap, reproducible habit</h2>
+      <p class="sub reveal">
+        Align models on a single GPU without silently burning the core they already earned.
+        Success is defined by outcomes that move a number — not by features shipped.
+      </p>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Component</th><th>Definition</th><th>Current state</th></tr></thead>
+          <tbody>
+            <tr><td>Capability retention</td><td>Core-eval under Surtur ÷ core-eval of frozen baseline</td><td>Undefined suite (blocker)</td></tr>
+            <tr><td>Alignment gain</td><td>Alignment-eval under Surtur − alignment-eval of unaligned baseline</td><td>Undefined suite (blocker)</td></tr>
+            <tr><td>Compute budget</td><td>GPU-hours of Surtur ÷ GPU-hours of full fine-tune</td><td>To be measured in P0</td></tr>
+            <tr><td>Hardware target</td><td>Single consumer / prosumer-class GPU</td><td>Stated in README</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== BLOCKER ===================== -->
+  <section id="blocker">
+    <div class="wrap">
+      <div class="eyebrow reveal">§2 · The problem &amp; the blocker</div>
+      <h2 class="reveal">One blocker gates the entire roadmap</h2>
+      <p class="sub reveal">
+        Post-training backpropagates across the entire model, degrading the central logic
+        engine. Epoch researchers want alignment without re-earning capabilities they already
+        paid for — and without a GPU cluster.
+      </p>
+      <div class="blocker reveal">
+        <div class="eyebrow">Action · research leads, this week</div>
+        <p style="margin:8px 0 0">
+          Specify (1) the <strong>core-capability eval suite</strong> — the "do not regress this"
+          set — and (2) the <strong>retention / alignment thresholds</strong> that define pass vs. fail.
+          Without these two definitions, Phase 0 cannot pass or fail, and every downstream phase is
+          built on an unverifiable premise.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== PRINCIPLES ===================== -->
+  <section id="principles">
+    <div class="wrap">
+      <div class="eyebrow reveal">§3 · Strategic principles</div>
+      <h2 class="reveal">The lines we don't cross</h2>
+      <p class="sub reveal">A roadmap is what we chose <em>not</em> to do. These five hold for every phase.</p>
+      <div class="principles">
+        <div class="principle reveal"><div class="num">1</div><div><h3>Preservation is the product</h3><p>If a run improves alignment but quietly degrades the core, it has failed. The core-eval suite is sacred.</p></div></div>
+        <div class="principle reveal"><div class="num">2</div><div><h3>Single GPU is the constraint</h3><p>Anything that requires a cluster is out of scope for v1.</p></div></div>
+        <div class="principle reveal"><div class="num">3</div><div><h3>Reproducibility is non-negotiable</h3><p>A number we can't rerun isn't evidence.</p></div></div>
+        <div class="principle reveal"><div class="num">4</div><div><h3>Constraint strategy, not new architecture</h3><p>Surtur is a <em>where-gradients-flow</em> decision. We do not invent optimizers or attention variants.</p></div></div>
+        <div class="principle reveal"><div class="num">5</div><div><h3>Say no to good ideas</h3><p>The cut lines below are deliberate. A roadmap is what we chose not to do.</p></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== PHASE ARC ===================== -->
+  <section id="arc">
+    <div class="wrap">
+      <div class="eyebrow reveal">§4 · Phase overview</div>
+      <h2 class="reveal">The arc: P0 → P1 → P2 → P3 → P4</h2>
+      <p class="sub reveal">Each phase answers one question and gates the next. Dependency chain is strict; P2 runs parallel with late P1.</p>
+      <div class="arc">
+        <div class="node reveal"><div class="pid">P0</div><h3>Validate the core claim</h3><p>Does layer-constrained training preserve the core AND align?</p></div>
+        <div class="node reveal"><div class="pid">P1</div><h3>Core runner (engine)</h3><p>Can we make this a reusable single-GPU runner?</p></div>
+        <div class="node reveal"><div class="pid">P2</div><h3>Reproducibility (Anchor)</h3><p>Can anyone rerun any result, anywhere?</p></div>
+        <div class="node reveal"><div class="pid">P3</div><h3>Internal dashboard (UI)</h3><p>Can researchers use it day-to-day without CLI heroics?</p></div>
+        <div class="node reveal"><div class="pid">P4</div><h3>Adoption &amp; hardening</h3><p>Is Surtur the default, not a curiosity?</p></div>
+      </div>
+      <div class="arc-bar reveal"></div>
+    </div>
+  </section>
+
+  <!-- ===================== PHASE DETAILS ===================== -->
+  <!-- P0 -->
+  <div class="phase" id="p0">
+    <div class="wrap">
+      <div class="head reveal"><div class="pid">P0</div><h2>Validate the core claim</h2></div>
+      <p class="question reveal">"Does confining gradients to layers 24–27 preserve the core AND align?" — currently unverified.</p>
+
+      <div class="field problem reveal">
+        <div class="label">The MVP — one head-to-head experiment</div>
+        <p>
+          <b>Arm A — Surtur:</b> layers 24–27 trainable, core frozen (no grad).
+          <b>Arm B — Full fine-tune:</b> standard SFT/GRPO across all layers.
+          <b>Arm C — Frozen baseline:</b> no training.
+          <b>Arm D — Untrained-but-aligned reference</b> (if available).
+          All arms use the same data, same seed, same objective.
+        </p>
+      </div>
+
+      <div class="scope reveal">
+        <div class="col must"><h4>Must</h4><ul>
+          <li>Fixed target-layer config (24–27) + frozen-core gradient masking</li>
+          <li>Core-capability eval suite (defined by research leads)</li>
+          <li>Alignment eval suite (defined by research leads)</li>
+          <li>Single shared training pipeline for all arms</li>
+        </ul></div>
+        <div class="col should"><h4>Should</h4><ul>
+          <li>Per-layer gradient-norm logging</li>
+          <li>Ablation: test layers {22–25}, {24–27}, {26–29}</li>
+        </ul></div>
+        <div class="col wont"><h4>Won't</h4><ul>
+          <li>UI, multi-GPU, novel methods</li>
+          <li>Hyperparameter sweeps</li>
+        </ul></div>
+      </div>
+
+      <div class="notes reveal" style="margin-top:22px">
+        <div class="note dod"><h4>Definition of Done</h4><ul>
+          <li>Each arm reproducible from a single command (same data + seed).</li>
+          <li>Core-eval: Surtur (A) ≥ Frozen baseline (C) − 2%.</li>
+          <li>Alignment-eval: Surtur (A) &gt; Untrained reference (D).</li>
+          <li>Results table committed with config + metric provenance.</li>
+        </ul></div>
+        <div class="note kill"><h4>Kill / revisit if</h4><ul>
+          <li>Core degrades beyond threshold AND only full fine-tune (B) reaches the target.</li>
+          <li>The spatial-constraint premise fails → pivot or stop. Do not proceed to P1.</li>
+        </ul></div>
+      </div>
+      <p class="reveal" style="margin-top:18px;color:var(--faint);font-size:14px">
+        Estimated effort: 1 researcher + 1 engineer, ~1–2 weeks including eval-suite definition.
+      </p>
+    </div>
+  </div>
+
+  <!-- P1 -->
+  <div class="phase" id="p1">
+    <div class="wrap">
+      <div class="head reveal"><div class="pid">P1</div><h2>Core runner (the engine)</h2></div>
+      <p class="question reveal">"Can we make the validated experiment a reusable, config-driven runner?" — only starts if P0 passes.</p>
+
+      <div class="field problem reveal">
+        <div class="label">The MVP</div>
+        <p>A config-driven training runner that accepts a target-layer spec, freezes the core, and runs SFT <em>or</em> GRPO on a single GPU, producing checkpoints and logs.</p>
+      </div>
+
+      <div class="scope reveal">
+        <div class="col must"><h4>Must</h4><ul>
+          <li>Config-driven target-layer selection</li>
+          <li>Frozen-core masking (no-grad on core)</li>
+          <li>Single-GPU optimization (grad accumulation / CPU offload)</li>
+          <li>SFT <em>and</em> GRPO training loops</li>
+          <li>Checkpoint + clean resume</li>
+        </ul></div>
+        <div class="col should"><h4>Should</h4><ul>
+          <li>Live gradient-norm + capability-trend logging</li>
+          <li>Guardrail: hard error if a frozen layer receives grad</li>
+          <li>Config schema validation</li>
+        </ul></div>
+        <div class="col wont"><h4>Won't</h4><ul>
+          <li>Multi-GPU / distributed training</li>
+          <li>Novel optimizers / custom attention</li>
+          <li>Auto layer-band selection</li>
+        </ul></div>
+      </div>
+
+      <div class="notes reveal" style="margin-top:22px">
+        <div class="note dod"><h4>Definition of Done</h4><ul>
+          <li>A probe confirms <em>only</em> layers 24–27 have non-zero gradients.</li>
+          <li>Full SFT and full GRPO each complete on one GPU within budget.</li>
+          <li>Resume from 60% interruption restores state to completion.</li>
+          <li>Retention matches the P0 validated result (regression guard).</li>
+        </ul></div>
+        <div class="note kill"><h4>Kill / revisit if</h4><ul>
+          <li>Runner can't hit the compute budget, or retention regresses vs. P0.</li>
+        </ul></div>
+      </div>
+      <p class="reveal" style="margin-top:18px;color:var(--faint);font-size:14px">
+        Estimated effort: 1–2 engineers, ~3–4 weeks.
+      </p>
+    </div>
+  </div>
+
+  <!-- P2 -->
+  <div class="phase" id="p2">
+    <div class="wrap">
+      <div class="head reveal"><div class="pid">P2</div><h2>Reproducibility (Anchor)</h2></div>
+      <p class="question reveal">"Can anyone rerun any result, anywhere?" — runs in parallel with late P1.</p>
+
+      <div class="field problem reveal">
+        <div class="label">The MVP</div>
+        <p>A pinned, versioned, one-command reproduction path for every published result.</p>
+      </div>
+
+      <div class="scope reveal">
+        <div class="col must"><h4>Must</h4><ul>
+          <li>Pinned environment (lockfile or container image)</li>
+          <li>Seed control + dataset versioning (hash-pinned)</li>
+          <li>Run command + config hash captured per result</li>
+          <li>Results registry (run → config → metrics)</li>
+        </ul></div>
+        <div class="col should"><h4>Should</h4><ul>
+          <li>Deterministic dataloader / sampler ordering</li>
+          <li>One-command "reproduce result #ID" entrypoint</li>
+        </ul></div>
+        <div class="col wont"><h4>Won't</h4><ul>
+          <li>CI that auto-runs all configs</li>
+          <li>Public result portal</li>
+        </ul></div>
+      </div>
+
+      <div class="notes reveal" style="margin-top:22px">
+        <div class="note dod"><h4>Definition of Done</h4><ul>
+          <li>A fresh environment reproduces metrics within tolerance from one command.</li>
+          <li>Every metric links to exact config + data version + seed.</li>
+          <li>A new researcher reproduces a P0 result without author help.</li>
+        </ul></div>
+        <div class="note kill"><h4>Kill / revisit if</h4><ul>
+          <li>Reproducibility consistently requires author intervention.</li>
+        </ul></div>
+      </div>
+      <p class="reveal" style="margin-top:18px;color:var(--faint);font-size:14px">
+        Estimated effort: 1 engineer, ~2 weeks (overlaps P1).
+      </p>
+    </div>
+  </div>
+
+  <!-- P3 -->
+  <div class="phase" id="p3">
+    <div class="wrap">
+      <div class="head reveal"><div class="pid">P3</div><h2>Internal dashboard (the UI)</h2></div>
+      <p class="question reveal">"Can researchers use it day-to-day without CLI heroics?" — design starts when P1 interface stabilizes; ship only after P2.</p>
+
+      <div class="field problem reveal">
+        <div class="label">The MVP</div>
+        <p>A web dashboard where a researcher submits a run config, watches live training, and sees the capability-preservation delta versus the frozen baseline — without leaving the page.</p>
+      </div>
+
+      <div class="scope reveal">
+        <div class="col must"><h4>Must</h4><ul>
+          <li>Submit a run config (target layers, method, dataset)</li>
+          <li>Live training-metrics view (loss, grad norm, step)</li>
+          <li>Capability-preservation comparison vs. frozen baseline</li>
+          <li>Run history + status (queued / running / done / failed)</li>
+          <li>Authentication via existing Epoch SSO</li>
+        </ul></div>
+        <div class="col should"><h4>Should</h4><ul>
+          <li>Per-layer gradient visualization</li>
+          <li>Side-by-side comparison of two runs</li>
+          <li>Artifact links to the P2 results registry</li>
+        </ul></div>
+        <div class="col wont"><h4>Won't</h4><ul>
+          <li>Multi-tenant auth / external sharing</li>
+          <li>Run scheduling / queueing</li>
+          <li>Billing / quotas / chargeback</li>
+        </ul></div>
+      </div>
+
+      <div class="notes reveal" style="margin-top:22px">
+        <div class="note dod"><h4>Definition of Done</h4><ul>
+          <li>SSO-authenticated researcher launches a run from the UI.</li>
+          <li>Live metrics render within ≤10s staleness.</li>
+          <li>Completed run shows core-retention delta without leaving the page.</li>
+          <li>Dashboard links a run to its P2 registry entry.</li>
+        </ul></div>
+        <div class="note kill"><h4>Kill / revisit if</h4><ul>
+          <li>Researchers keep using the CLI despite the dashboard.</li>
+        </ul></div>
+      </div>
+      <p class="reveal" style="margin-top:18px;color:var(--faint);font-size:14px">
+        Estimated effort: 1–2 engineers (frontend + backend), ~4–6 weeks including Atlas design.
+      </p>
+    </div>
+  </div>
+
+  <!-- P4 -->
+  <div class="phase" id="p4">
+    <div class="wrap">
+      <div class="head reveal"><div class="pid">P4</div><h2>Adoption &amp; hardening</h2></div>
+      <p class="question reveal">"Is Surtur the default, not a curiosity?" — starts after P3 ships.</p>
+
+      <div class="scope reveal">
+        <div class="col must"><h4>Must</h4><ul>
+          <li>Template configs for common Epoch alignment jobs</li>
+          <li>One end-to-end worked example (doc)</li>
+          <li>Track adoption + median retention</li>
+        </ul></div>
+        <div class="col should"><h4>Should</h4><ul>
+          <li>Auto layer-band suggestion from a quick probe run</li>
+          <li>Integration with Epoch's existing eval/reporting</li>
+        </ul></div>
+        <div class="col wont"><h4>Won't</h4><ul>
+          <li>External community features</li>
+          <li>Custom model architectures</li>
+        </ul></div>
+      </div>
+
+      <div class="notes reveal" style="margin-top:22px">
+        <div class="note dod"><h4>Definition of Done</h4><ul>
+          <li>New researcher completes a run template→result in &lt; 1 day.</li>
+          <li>Adoption target met for two consecutive months.</li>
+          <li>Median retention ≥ the P0 threshold.</li>
+        </ul></div>
+        <div class="note kill"><h4>Kill / revisit if</h4><ul>
+          <li>Adoption stays &lt; 20% after active onboarding → re-interview users.</li>
+        </ul></div>
+      </div>
+      <p class="reveal" style="margin-top:18px;color:var(--faint);font-size:14px">
+        Success: ≥60% of Epoch alignment runs on Surtur within 2 quarters; median retention ≥ P0 threshold; GPU-cost ratio ≤30%.
+      </p>
+    </div>
+  </div>
+
+  <!-- ===================== RISKS ===================== -->
+  <section id="risks">
+    <div class="wrap">
+      <div class="eyebrow reveal">§10 · Cross-cutting risks &amp; open questions</div>
+      <h2 class="reveal">What could go wrong</h2>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Risk / Question</th><th>Impact</th><th>Mitigation</th></tr></thead>
+          <tbody>
+            <tr><td>Core-capability eval suite undefined</td><td>Blocks P0 entirely</td><td>Research leads define it this week (§2 blocker)</td></tr>
+            <tr><td>Retention / alignment thresholds undefined</td><td>Blocks P0 pass/fail</td><td>Same blocker; sign off before build</td></tr>
+            <tr><td>Is 24–27 universal or model-dependent?</td><td>Affects generalizability</td><td>P0 ablation across layer bands</td></tr>
+            <tr><td>Degradation claim may be false</td><td>Invalidates premise</td><td>P0 kill condition; stop if failed</td></tr>
+            <tr><td>Single-GPU ceiling on large jobs</td><td>Some tasks won't fit</td><td>Document where Surtur refuses to apply</td></tr>
+            <tr><td>"Core" vs "periphery" boundary fuzzy</td><td>Masks may be wrong</td><td>P0 gradient-norm logging informs boundary</td></tr>
+            <tr><td>Researcher adoption uncertain</td><td>Tool unused = waste</td><td>P4 metrics + interviews; kill if &lt; 20%</td></tr>
+            <tr><td>Maintainer burden after launch</td><td>Tool rots</td><td>P2 registry + P3 SSO reuse reduces load</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== WHAT WE ARE NOT BUILDING ===================== -->
+  <section id="notbuilding">
+    <div class="wrap">
+      <div class="eyebrow reveal">§11 · Explicitly NOT building</div>
+      <h2 class="reveal">The cut line</h2>
+      <div class="scope reveal" style="grid-template-columns:1fr 1fr">
+        <div class="col wont"><h4>Out of scope</h4><ul>
+          <li>A hosted / productized platform with external customers</li>
+          <li>An open-source / community release</li>
+          <li>Multi-GPU / distributed training</li>
+          <li>Multi-tenant auth, external sharing, billing/quotas</li>
+          <li>Run scheduling / queueing</li>
+          <li>Novel ML methods / optimizers / architectures</li>
+        </ul></div>
+        <div class="col must"><h4>In scope (the bet)</h4><ul>
+          <li>Internal research tool, single GPU</li>
+          <li>A constraint strategy: where gradients flow</li>
+          <li>Reproducible, registry-backed numbers</li>
+          <li>A dashboard that makes retention visible</li>
+        </ul></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== MILESTONES ===================== -->
+  <section id="milestones">
+    <div class="wrap">
+      <div class="eyebrow reveal">§12 · Milestone summary &amp; sequencing</div>
+      <h2 class="reveal">The critical path</h2>
+      <p class="sub reveal">M0 → M1 → M2 → M3 → M4 → M5. The longest pole is M0 — until the eval suite exists, no real work can validate anything.</p>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th>Milestone</th><th>Phase</th><th>Exit criteria</th><th>Dependency</th></tr></thead>
+          <tbody>
+            <tr><td>M0: Eval suite + thresholds defined</td><td>Pre-P0</td><td>Research leads sign off</td><td>None (start here)</td></tr>
+            <tr><td>M1: Core claim validated</td><td>P0</td><td>Retention + alignment pass within thresholds</td><td>M0</td></tr>
+            <tr><td>M2: Reusable runner ships</td><td>P1</td><td>P0 numbers reproduced via config</td><td>M1</td></tr>
+            <tr><td>M3: Results reproducible 1-command</td><td>P2</td><td>Registry + pinned env, rerun verified</td><td>M2</td></tr>
+            <tr><td>M4: Dashboard launch</td><td>P3</td><td>Launch → watch → retention, all in UI</td><td>M3</td></tr>
+            <tr><td>M5: Surtur is default</td><td>P4</td><td>Adoption + retention targets met</td><td>M4</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="eyebrow reveal" style="margin-top:48px">§13 · Open decisions for the team</div>
+      <div class="scope reveal" style="grid-template-columns:1fr 1fr;margin-top:14px">
+        <div class="col should"><h4>Unresolved</h4><ul>
+          <li>Who owns the eval suite? (lead + date)</li>
+          <li>What are the retention / alignment thresholds?</li>
+          <li>Which base model(s) does P0 target?</li>
+        </ul></div>
+        <div class="col should"><h4>Unresolved</h4><ul>
+          <li>Which alignment objective is the P0 proving ground?</li>
+          <li>Compute budget reality — what single-GPU class + full-fine-tune baseline cost?</li>
+        </ul></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== FOOTER ===================== -->
+  <footer>
+    <div class="wrap">
+      <div class="brand">Surtur</div>
+      <p style="margin:8px 0 0">Prepared by Charter. Hand off to Atlas (system design) once M0 is resolved. Hand off to Forge (build) after Atlas delivers the P1/P3 designs.</p>
+      <p style="margin:14px 0 0;color:var(--faint)">Draft v1 · last updated 2026-07-08 · pending research-lead sign-off on the two blocking definitions.</p>
+    </div>
+  </footer>
+
+  <!-- ===================== SCRIPT: reveal-on-scroll ===================== -->
+  <script>
+    // Progressive enhancement only: if JS is off, content is already visible
+    // (the .reveal rule is overridden by this observer adding .is-visible).
+    const items = document.querySelectorAll('.reveal');
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (e.isIntersecting) {
+          e.target.classList.add('is-visible');
+          io.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.12 });
+    items.forEach((el) => io.observe(el));
+  </script>
+</body>
+</html>
