@@ -1,0 +1,13 @@
+model_id: "facebook/opt-125m"
+method: "sft"
+layer_spec: "last_4"
+dataset_path: "src/smoke_data.jsonl"
+output_dir_base: "./surtur_out/smoke_experiment"
+seeds: [42]
+arms:
+  - surtur
+  - frozen
+max_steps: 2
+batch_size: 2
+grad_accum: 1
+dtype: "fp32"

@@ -6,9 +6,9 @@
     "license": "internal"
   },
   "p0_train.jsonl": {
-    "sha256": "435674d4be2336af807286b5a04ebb1c8ca6244236527775af178a93dcf44f19",
-    "version": "0.0.0",
-    "description": "Real P0 training data \u00e2\u20ac\u201d hash before use",
+    "sha256": "8aab7f84be85db5259715b3189a55db5756883fbdd0ad15a4d03880ac4974379",
+    "version": "0.1.0",
+    "description": "Real P0 training data",
     "license": "internal"
   }
 }
