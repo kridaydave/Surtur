@@ -2,7 +2,7 @@
 # Arms: A (surtur), B (full_ft), C (frozen), D (untrained_ref)
 # Adjust model_id, dataset_path, and seeds for your run.
 
-model_id: "meta-llama/Llama-2-7b-hf"
+model_id: "Qwen/Qwen2.5-7B"
 method: "sft"
 layer_spec: "last_4"
 dataset_path: "data/p0_train.jsonl"
