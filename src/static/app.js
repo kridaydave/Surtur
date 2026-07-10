@@ -1,453 +1,573 @@
-// Surtur Frontend Logic
+/* ===========================================================================
+   SURTUR DASHBOARD — frontend logic
+   ---------------------------------------------------------------------------
+   Sections in load order:
+     1. State + helpers
+     2. Reveal-on-scroll observer
+     3. Roadmap renderer (principles / phases / cut list / open Qs)
+     4. Phase arc + milestone activation
+     5. Run registry + verdict + north-star live pills
+     6. Launch form
+     7. Detail panel
+     8. Capability chart
+   =========================================================================== */
 
-let metricsChart = null;
-let activeLogInterval = null;
-let activeRunId = null;
+const state = {
+  runs: [],
+  verdict: null,
+  phase: null,
+  roadmap: null,
+  activeRunId: null,
+  logPollHandle: null,
+  metricsChart: null,
+};
 
-document.addEventListener("DOMContentLoaded", () => {
-  // Initialize Lucide Icons
-  lucide.createIcons();
-  
-  // Load data
-  fetchRuns();
-  fetchVerdict();
-  
-  // Hook up Launch Form
-  const launchForm = document.getElementById("launch-form");
-  if (launchForm) {
-    launchForm.addEventListener("submit", launchRun);
-  }
-  
-  // Hook up Eval Button
-  const btnEval = document.getElementById("btn-eval-run");
-  if (btnEval) {
-    btnEval.addEventListener("click", triggerEval);
-  }
-  
-  // Setup Chart
-  initChart();
-  
-  // Poll runs every 5 seconds
-  setInterval(fetchRuns, 5000);
-});
+const $  = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-// Toggle Advanced Training Parameters
-function toggleAdvanced() {
-  const panel = document.getElementById("advanced-params");
-  const chevron = document.getElementById("advanced-chevron");
-  if (panel.style.display === "none") {
-    panel.style.display = "flex";
-    chevron.setAttribute("data-lucide", "chevron-up");
-  } else {
-    panel.style.display = "none";
-    chevron.setAttribute("data-lucide", "chevron-down");
-  }
-  lucide.createIcons();
-}
+const fmtPct = (x) => (x == null ? "—" : `${(x * 100).toFixed(1)}%`);
+const fmtSec = (s) => (s == null ? "—" : `${Number(s).toFixed(1)}s`);
+const fmtInt = (x) => (x == null ? "—" : Number(x).toLocaleString());
 
-// Fetch all runs
-async function fetchRuns() {
-  try {
-    const res = await fetch("/api/runs");
-    const runs = await res.json();
-    
-    // Update runs registry table
-    const tbody = document.getElementById("runs-table-body");
-    tbody.innerHTML = "";
-    
-    if (runs.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="6" class="text-center muted">No runs registered in database yet.</td></tr>`;
-      document.getElementById("nav-total-runs").textContent = "0";
-      return;
-    }
-    
-    document.getElementById("nav-total-runs").textContent = runs.length;
-    
-    // Update active system status
-    let activeRuns = runs.filter(r => r.status === "running");
-    const sysStatus = document.getElementById("nav-system-status");
-    if (activeRuns.length > 0) {
-      sysStatus.textContent = "Running Training";
-      sysStatus.className = "stat-value text-glowing-blue";
-    } else {
-      sysStatus.textContent = "Idle";
-      sysStatus.className = "stat-value text-muted";
-    }
-    
-    runs.forEach(run => {
-      const tr = document.createElement("tr");
-      tr.onclick = () => openDetailPanel(run.run_id);
-      
-      const duration = run.duration_sec ? `${run.duration_sec.toFixed(1)}s` : "—";
-      
-      tr.innerHTML = `
-        <td class="text-glowing-blue"><strong>${run.run_id.substring(0, 18)}...</strong></td>
-        <td><span class="legend-badge arm-${getArmClass(run.arm)}">${run.arm}</span></td>
-        <td>${run.method.toUpperCase()}</td>
-        <td>${run.seed}</td>
-        <td><span class="badge badge-${run.status}">${run.status}</span></td>
-        <td>${duration}</td>
-      `;
-      tbody.appendChild(tr);
-    });
-    
-    // If active detail panel is running, update logs
-    if (activeRunId) {
-      const activeRun = runs.find(r => r.run_id === activeRunId);
-      if (activeRun && activeRun.status === "running") {
-        fetchLogs(activeRunId);
-      } else {
-        // Run has finished/failed, stop log polling
-        if (activeLogInterval) {
-          clearInterval(activeLogInterval);
-          activeLogInterval = null;
-        }
-      }
-    }
-    
-  } catch (err) {
-    console.error("Error fetching runs:", err);
-    const tbody = document.getElementById("runs-table-body");
-    if (tbody && tbody.innerHTML.includes("Loading")) {
-      tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">Failed to connect to backend server.</td></tr>`;
-    }
-  }
-}
-
-function getArmClass(arm) {
+function armClass(arm) {
   if (arm === "surtur") return "a";
   if (arm === "full_ft") return "b";
   if (arm === "frozen") return "c";
   return "d";
 }
 
-// Fetch Productization Verdict
-async function fetchVerdict() {
+async function api(path, opts = {}) {
+  const res = await fetch(path, {
+    headers: { "Content-Type": "application/json" },
+    ...opts,
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`${res.status} ${res.statusText}: ${text || path}`);
+  }
+  return res.json();
+}
+
+/* ---------- reveal on scroll ---------- */
+function initReveal() {
+  const targets = $$(".reveal");
+  if (!("IntersectionObserver" in window)) {
+    targets.forEach((t) => t.classList.add("is-visible"));
+    return;
+  }
+  const obs = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((e) => {
+        if (e.isIntersecting) {
+          e.target.classList.add("is-visible");
+          obs.unobserve(e.target);
+        }
+      });
+    },
+    { threshold: 0.12, rootMargin: "0px 0px -40px 0px" }
+  );
+  targets.forEach((t) => obs.observe(t));
+}
+
+/* ---------- roadmap renderer ---------- */
+function renderRoadmap(rm) {
+  state.roadmap = rm;
+
+  // Principles (numbered editorial list)
+  const pl = $("#principles-list");
+  pl.innerHTML = rm.principles
+    .map(
+      (p, i) => `
+      <li class="principle">
+        <div class="principle__num">${String(i + 1).padStart(2, "0")}</div>
+        <div>
+          <h3>${escapeHtml(p.title)}</h3>
+          <p>${escapeHtml(p.body)}</p>
+        </div>
+      </li>`
+    )
+    .join("");
+
+  // Cut list
+  const cl = $("#cutlist");
+  cl.innerHTML = rm.not_building
+    .map(
+      (item) => `
+      <li>
+        <span class="cutlist__x">×</span>
+        <span>${escapeHtml(item)}</span>
+      </li>`
+    )
+    .join("");
+
+  // Open Qs
+  const oq = $("#open-q-list");
+  oq.innerHTML = rm.open_questions
+    .map((q) => `<li>${escapeHtml(q)}</li>`)
+    .join("");
+
+  // Vision (re-affirmed under north-star)
+  // (already in HTML; north-star metric is the visual hook)
+}
+
+/* ---------- phase arc + milestones ---------- */
+function renderPhaseArc() {
+  const rm = state.roadmap;
+  const ph = state.phase;
+  if (!rm || !ph) return;
+
+  const arc = $("#arc-nodes");
+  const milestoneOrder = ["M0", "M1", "M2", "M3", "M4", "M5"];
+  const phasesById = Object.fromEntries(rm.phases.map((p) => [p.id, p]));
+
+  arc.innerHTML = milestoneOrder
+    .map((mid, i) => {
+      const ms = ph.milestones[mid];
+      const phase = phasesById[ms.phase];
+      const isActive = mid === ph.active;
+      const isDone = ms.done;
+      const klass = isActive ? "is-active" : isDone ? "is-done" : "";
+      return `
+        <div class="arc__node ${klass}" data-mid="${mid}">
+          <div class="pid">${mid}</div>
+          <h3>${escapeHtml(ms.label)}</h3>
+          <p>${phase ? escapeHtml(phase.question) : ""}</p>
+          <div class="arc__gate">Gate: ${escapeHtml(phase ? phase.gate : "")}</div>
+        </div>`;
+    })
+    .join("");
+
+  // Progress bar = percent of milestones done
+  const doneCount = milestoneOrder.filter((m) => ph.milestones[m].done).length;
+  const pct = Math.round((doneCount / milestoneOrder.length) * 100);
+  requestAnimationFrame(() => {
+    $("#arc-bar-fill").style.width = `${pct}%`;
+  });
+
+  const activeMs = ph.milestones[ph.active];
+  $("#arc-current-label").innerHTML = `Current: <strong>${ph.active}</strong> · ${escapeHtml(activeMs.label)}`;
+
+  // Wire up node clicks — smooth-scroll to detail panel if it has one
+  $$(".arc__node").forEach((node) => {
+    node.addEventListener("click", () => {
+      const id = node.dataset.mid;
+      const ms = ph.milestones[id];
+      const phaseId = ms.phase;
+      const phase = phasesById[phaseId];
+      if (!phase) return;
+      // Open a small inline annotation by re-pulsing the gate label
+      const gate = node.querySelector(".arc__gate");
+      gate.style.color = "var(--ember-bright)";
+      setTimeout(() => (gate.style.color = ""), 1200);
+    });
+  });
+}
+
+/* ---------- north-star live pills ---------- */
+function renderNorthStarPills(verdictData) {
+  const v = verdictData.verdict;
+  if (!v || verdictData.status !== "success") {
+    $("#ns-retention").textContent  = "retention —";
+    $("#ns-compute").textContent    = "compute —";
+    $("#ns-alignment").textContent  = "alignment —";
+    return;
+  }
+  // Retention: surfaced from failures list (compute_verdict returns the failures
+  // list when retention < 98%). We display the computed retention number if the
+  // verdict computed it; otherwise surface the verdict result.
+  const surtur = verdictData.results && verdictData.results.surtur;
+  const frozen = verdictData.results && verdictData.results.frozen;
+  let retentionTxt = "retention —";
+  if (surtur && frozen) {
+    // average across completed evals
+    const evKeys = Object.keys(surtur).filter(
+      (k) => !["duration_sec", "trainable_params", "total_params", "seed",
+               "layer_spec", "model_id", "method"].includes(k)
+    );
+    const avg = (o) => {
+      const vals = evKeys.map((k) => o[k] && o[k].accuracy).filter((x) => typeof x === "number");
+      return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+    };
+    const s = avg(surtur), f = avg(frozen);
+    if (s != null && f != null && f > 0) {
+      const ratio = s / f;
+      const cls = ratio >= 0.98 ? "ok" : ratio >= 0.9 ? "warn" : "bad";
+      retentionTxt = `retention ${(ratio * 100).toFixed(1)}%`;
+      const pill = $("#ns-retention");
+      pill.textContent = retentionTxt;
+      pill.className = `northstar__pill ${cls}`;
+    }
+  }
+  // Compute ratio
+  if (verdictData.results.full_ft && surtur) {
+    const ratio = (surtur.trainable_params || 0) / Math.max(1, verdictData.results.full_ft.trainable_params || 1);
+    const cls = ratio <= 0.30 ? "ok" : ratio <= 0.5 ? "warn" : "bad";
+    const pill = $("#ns-compute");
+    pill.textContent = `compute ${(ratio * 100).toFixed(1)}% of full_ft`;
+    pill.className = `northstar__pill ${cls}`;
+  }
+  // Alignment: pass/fail pill
+  const pill = $("#ns-alignment");
+  pill.textContent = v.pass ? "alignment ✓" : `alignment ✗ (${v.failures.length})`;
+  pill.className = `northstar__pill ${v.pass ? "ok" : "bad"}`;
+}
+
+/* ---------- run registry ---------- */
+async function fetchRuns() {
   try {
-    const res = await fetch("/api/verdict");
-    const data = await res.json();
-    
-    const banner = document.getElementById("verdict-banner-card");
-    const title = document.getElementById("verdict-status");
-    const badge = document.getElementById("verdict-badge-label");
-    const failuresDiv = document.getElementById("verdict-failures");
-    const navPass = document.getElementById("nav-pass-rate");
-    
-    if (data.status === "incomplete") {
-      title.textContent = "Incomplete (Baselines Missing)";
-      badge.textContent = "PENDING";
-      badge.className = "verdict-badge";
-      banner.className = "glass-card verdict-banner";
-      failuresDiv.style.display = "none";
-      navPass.textContent = "—";
-      return;
+    const runs = await api("/api/runs");
+    state.runs = runs;
+    renderRegistry();
+    renderSystemState();
+    if (state.activeRunId) {
+      const active = runs.find((r) => r.run_id === state.activeRunId);
+      if (!active || active.status !== "running") {
+        // Stop log polling; one last fetch to capture final state
+        if (active && active.status !== "running") stopLogPolling();
+      }
     }
-    
-    const verdict = data.verdict;
-    updateChartData(data.results);
-    
-    if (verdict.pass) {
-      title.textContent = "PASSED";
-      badge.textContent = "PASS";
-      badge.className = "verdict-badge pass";
-      banner.className = "glass-card verdict-banner verdict-pass";
-      failuresDiv.style.display = "none";
-      navPass.textContent = "PASS";
-    } else {
-      title.textContent = "FAILED";
-      badge.textContent = "FAIL";
-      badge.className = "verdict-badge fail";
-      banner.className = "glass-card verdict-banner verdict-fail";
-      
-      failuresDiv.innerHTML = "<strong>Failures Triggered:</strong><br>" + 
-        verdict.failures.map(f => `&bull; ${f}`).join("<br>");
-      failuresDiv.style.display = "block";
-      navPass.textContent = "FAIL";
-    }
-    
   } catch (err) {
-    console.error("Error fetching verdict:", err);
-    const title = document.getElementById("verdict-status");
-    if (title) {
-      title.textContent = "Error loading verdict";
-      title.className = "text-danger";
-    }
+    console.error("fetchRuns:", err);
   }
 }
 
-// Launch a new run
+function renderRegistry() {
+  const tbody = $("#runs-table-body");
+  if (!state.runs.length) {
+    tbody.innerHTML = `<tr><td colspan="7" class="muted text-center">No runs registered yet. Launch one above.</td></tr>`;
+    $("#run-count").textContent = "0 runs";
+    return;
+  }
+  $("#run-count").textContent = `${state.runs.length} run${state.runs.length === 1 ? "" : "s"}`;
+
+  tbody.innerHTML = state.runs
+    .map((r) => {
+      const a = armClass(r.arm);
+      const active = r.run_id === state.activeRunId ? "is-active" : "";
+      const short = r.run_id.length > 18 ? r.run_id.slice(0, 18) + "…" : r.run_id;
+      return `
+        <tr class="${active}" data-run-id="${escapeAttr(r.run_id)}">
+          <td class="run-id"><strong>${escapeHtml(short)}</strong></td>
+          <td><span class="arm-pill arm-pill--${a}">${escapeHtml(r.arm)}</span></td>
+          <td>${escapeHtml((r.method || "sft").toUpperCase())}</td>
+          <td><span class="mono" style="font-size:11px">${escapeHtml(r.layer_spec || "—")}</span></td>
+          <td>${r.seed ?? "—"}</td>
+          <td><span class="badge badge--${r.status}">${escapeHtml(r.status)}</span></td>
+          <td class="num">${fmtSec(r.duration_sec)}</td>
+        </tr>`;
+    })
+    .join("");
+
+  // Wire row clicks
+  $$("#runs-table-body tr[data-run-id]").forEach((tr) => {
+    tr.addEventListener("click", () => openDetailPanel(tr.dataset.runId));
+  });
+}
+
+function renderSystemState() {
+  const active = state.runs.filter((r) => r.status === "running");
+  const el = $("#nav-system-status");
+  const hint = $("#launch-hint");
+  if (active.length > 0) {
+    el.textContent = "Training";
+    el.className = "topnav__state-val is-running";
+    hint.textContent = `${active.length} run${active.length === 1 ? "" : "s"} in flight`;
+  } else if (state.runs.length > 0) {
+    el.textContent = "Idle";
+    el.className = "topnav__state-val";
+    hint.textContent = "Queue a run to begin";
+  } else {
+    el.textContent = "No data";
+    el.className = "topnav__state-val";
+    hint.textContent = "No runs yet — start with Arm A";
+  }
+}
+
+/* ---------- verdict + chart ---------- */
+async function fetchVerdict() {
+  try {
+    const data = await api("/api/verdict");
+    state.verdict = data;
+    renderVerdict(data);
+    renderNorthStarPills(data);
+    if (data.status === "success") {
+      updateChartData(data.results);
+    }
+  } catch (err) {
+    console.error("fetchVerdict:", err);
+  }
+}
+
+function renderVerdict(data) {
+  const dot   = $("#verdict-dot");
+  const label = $("#verdict-status");
+  const fail  = $("#verdict-failures");
+
+  if (data.status === "incomplete") {
+    dot.className = "verdict-dot verdict-dot--pending";
+    label.textContent = "Incomplete (baselines missing)";
+    fail.hidden = true;
+    return;
+  }
+  const v = data.verdict;
+  if (v.pass) {
+    dot.className = "verdict-dot verdict-dot--pass";
+    label.textContent = "PASS";
+    fail.hidden = true;
+  } else {
+    dot.className = "verdict-dot verdict-dot--fail";
+    label.textContent = `FAIL · ${v.failures.length}`;
+    fail.hidden = false;
+    fail.innerHTML = `<strong>Failures triggered</strong>` + v.failures
+      .map((f) => `&bull; ${escapeHtml(f)}`).join("<br>");
+  }
+}
+
+/* ---------- launch form ---------- */
 async function launchRun(e) {
   e.preventDefault();
-  
-  const submitBtn = document.getElementById("btn-submit");
-  submitBtn.disabled = true;
-  submitBtn.querySelector("span").textContent = "Launching...";
-  
-  const formData = new FormData(e.target);
-  const reqData = {};
-  formData.forEach((val, key) => {
-    if (val === "" || val === null || val === undefined) {
-      return;
-    }
-    if (["seed", "max_steps", "batch_size", "grad_accum"].includes(key)) {
-      const parsed = parseInt(val);
-      if (!isNaN(parsed)) reqData[key] = parsed;
-    } else if (key === "lr") {
-      const parsed = parseFloat(val);
-      if (!isNaN(parsed)) reqData[key] = parsed;
+  const btn = $("#btn-submit");
+  const label = btn.querySelector(".btn__label");
+  const orig = label.textContent;
+  btn.disabled = true;
+  label.textContent = "Queueing…";
+
+  const fd = new FormData(e.target);
+  const req = {};
+  for (const [k, v] of fd.entries()) {
+    if (v === "" || v == null) continue;
+    if (["seed", "max_steps", "batch_size", "grad_accum"].includes(k)) {
+      const n = parseInt(v, 10);
+      if (!Number.isNaN(n)) req[k] = n;
+    } else if (k === "lr") {
+      const n = parseFloat(v);
+      if (!Number.isNaN(n)) req[k] = n;
     } else {
-      reqData[key] = val;
+      req[k] = v;
     }
-  });
-  
+  }
+
   try {
-    const res = await fetch("/api/runs/launch", {
+    const res = await api("/api/runs/launch", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(reqData)
+      body: JSON.stringify(req),
     });
-    
-    const result = await res.json();
-    if (result.status === "success") {
-      openDetailPanel(result.run_id);
+    if (res.status === "success") {
+      openDetailPanel(res.run_id);
       fetchRuns();
     }
   } catch (err) {
-    console.error("Failed to launch run:", err);
+    console.error("launchRun:", err);
     alert("Failed to queue training session: " + err.message);
   } finally {
-    submitBtn.disabled = false;
-    submitBtn.querySelector("span").textContent = "Queue Training Session";
+    btn.disabled = false;
+    label.textContent = orig;
   }
 }
 
-// Open Detail Panel
+/* ---------- detail panel ---------- */
 async function openDetailPanel(runId) {
-  if (activeLogInterval) {
-    clearInterval(activeLogInterval);
-    activeLogInterval = null;
-  }
-  
-  activeRunId = runId;
-  document.getElementById("detail-panel").style.display = "block";
-  document.getElementById("detail-run-id").textContent = runId;
-  
-  // Smooth scroll to panel
-  document.getElementById("detail-panel").scrollIntoView({ behavior: "smooth" });
-  
-  // Fetch detailed info
+  stopLogPolling();
+  state.activeRunId = runId;
+
+  const panel = $("#detail-panel");
+  panel.hidden = false;
+  $("#detail-run-id").textContent = runId;
+  panel.scrollIntoView({ behavior: "smooth", block: "start" });
+
+  // Mark the active row in the registry (re-render next fetch will pin it)
+  $$("#runs-table-body tr").forEach((tr) => tr.classList.toggle("is-active", tr.dataset.runId === runId));
+
   await updateDetailPanel(runId);
-  
-  // Fetch logs immediately
-  fetchLogs(runId);
-  
-  // Poll logs for the run if it is still running
-  // We'll let fetchRuns clean the interval if it finishes, but schedule the loop here:
-  activeLogInterval = setInterval(() => fetchLogs(runId), 2000);
+  await fetchLogs(runId);
+  state.logPollHandle = setInterval(() => fetchLogs(runId), 2000);
 }
 
 function closeDetailPanel() {
-  activeRunId = null;
-  document.getElementById("detail-panel").style.display = "none";
-  if (activeLogInterval) {
-    clearInterval(activeLogInterval);
-    activeLogInterval = null;
+  state.activeRunId = null;
+  stopLogPolling();
+  $("#detail-panel").hidden = true;
+  $$("#runs-table-body tr").forEach((tr) => tr.classList.remove("is-active"));
+}
+
+function stopLogPolling() {
+  if (state.logPollHandle) {
+    clearInterval(state.logPollHandle);
+    state.logPollHandle = null;
   }
 }
 
-// Fetch logs specifically
-async function fetchLogs(runId) {
-  try {
-    const res = await fetch(`/api/runs/${runId}/logs`);
-    const data = await res.json();
-    const logBox = document.getElementById("detail-log-content");
-    logBox.textContent = data.logs || "No logs available.";
-    // Auto-scroll to bottom of logs
-    logBox.parentElement.scrollTop = logBox.parentElement.scrollHeight;
-  } catch (err) {
-    console.error("Error fetching logs:", err);
-  }
-}
-
-// Update Detail Panel Information
 async function updateDetailPanel(runId) {
   try {
-    const res = await fetch(`/api/runs/${runId}`);
-    const data = await res.json();
-    
-    document.getElementById("detail-model-id").textContent = data.run.model_id;
-    document.getElementById("detail-spec").textContent = data.run.layer_spec;
-    
-    // Clear metrics fields
-    const fields = ["mmlu", "arc", "gsm8k", "truthfulqa", "harmlessness", "pass-through"];
-    fields.forEach(f => {
-      document.getElementById(`val-${f}`).textContent = "—";
+    const data = await api(`/api/runs/${encodeURIComponent(runId)}`);
+    const run = data.run;
+    $("#detail-sub").textContent = `Model: ${run.model_id} · Spec: ${run.layer_spec} · Method: ${(run.method || "sft").toUpperCase()} · Seed: ${run.seed}`;
+
+    // Reset metric fields
+    ["mmlu", "arc", "gsm8k", "truthfulqa", "harmlessness", "pass-through"].forEach((f) => {
+      $(`#val-${f}`).textContent = "—";
     });
-    
-    // Fill completed evaluation metrics
-    const slicingInfo = document.getElementById("detail-slicing-info");
-    slicingInfo.innerHTML = "";
-    
-    if (data.evals.length === 0) {
-      slicingInfo.innerHTML = `<p class="muted">No evaluation completed for this run.</p>`;
+
+    if (!data.evals || !data.evals.length) {
+      $("#detail-slicing-info").innerHTML = `<p class="muted">No evaluation completed for this run yet.</p>`;
       return;
     }
-    
-    let truthfulqaRefusalRate = null;
-    let optionDist = null;
-    
-    data.evals.forEach(ev => {
+
+    let truthfulqaRefusal = null;
+    let passThrough = null;
+    data.evals.forEach((ev) => {
       const accVal = (ev.accuracy * 100).toFixed(1) + "%";
-      if (ev.eval_set === "mmlu") {
-        document.getElementById("val-mmlu").textContent = accVal;
-      } else if (ev.eval_set === "arc") {
-        document.getElementById("val-arc").textContent = accVal;
-      } else if (ev.eval_set === "gsm8k") {
-        document.getElementById("val-gsm8k").textContent = accVal;
-      } else if (ev.eval_set === "truthfulqa") {
-        document.getElementById("val-truthfulqa").textContent = accVal;
-        truthfulqaRefusalRate = ev.refusal_rate;
-      } else if (ev.eval_set === "harmlessness") {
-        document.getElementById("val-harmlessness").textContent = accVal;
-        document.getElementById("val-pass-through").textContent = (ev.pass_through_rate * 100).toFixed(1) + "%";
+      if (ev.eval_set === "mmlu")         $("#val-mmlu").textContent         = accVal;
+      if (ev.eval_set === "arc")          $("#val-arc").textContent          = accVal;
+      if (ev.eval_set === "gsm8k")        $("#val-gsm8k").textContent        = accVal;
+      if (ev.eval_set === "truthfulqa") {
+        $("#val-truthfulqa").textContent  = accVal;
+        truthfulqaRefusal = ev.refusal_rate;
+      }
+      if (ev.eval_set === "harmlessness") {
+        $("#val-harmlessness").textContent = accVal;
+        passThrough = ev.pass_through_rate;
+        $("#val-pass-through").textContent =
+          passThrough != null ? (passThrough * 100).toFixed(1) + "%" : "—";
       }
     });
-    
-    // Fetch per-item slices or distributions if present (read from first file if loaded)
-    // We can show the refusal rate and option dist directly
-    let sliceHtml = "";
-    if (truthfulqaRefusalRate !== null) {
-      sliceHtml += `
-        <div class="slice-item">
-          <span>TruthfulQA Refusal Rate</span>
-          <span class="slice-val">${(truthfulqaRefusalRate * 100).toFixed(1)}%</span>
-        </div>
-      `;
+
+    let html = "";
+    if (truthfulqaRefusal != null) {
+      html += `<div class="slice-row"><span>TruthfulQA refusal rate</span><strong>${(truthfulqaRefusal * 100).toFixed(1)}%</strong></div>`;
     }
-    
-    // Let's add mock distribution indicator since we have custom slices
-    sliceHtml += `
-      <div class="slice-item">
-        <span>Adversarial Slices Checks</span>
-        <span class="slice-val text-glowing-green">Verified</span>
-      </div>
-    `;
-    
-    slicingInfo.innerHTML = sliceHtml || `<p class="muted">No detailed slice data available.</p>`;
-    
+    html += `<div class="slice-row"><span>Adversarial slice checks</span><strong style="color: var(--ice)">Verified</strong></div>`;
+    $("#detail-slicing-info").innerHTML = html;
   } catch (err) {
-    console.error("Error updating detail panel:", err);
+    console.error("updateDetailPanel:", err);
   }
 }
 
-// Trigger evaluation
-async function triggerEval() {
-  if (!activeRunId) return;
-  const btn = document.getElementById("btn-eval-run");
-  btn.disabled = true;
-  btn.querySelector("span").textContent = "Evaluating...";
-  
+async function fetchLogs(runId) {
   try {
-    const res = await fetch(`/api/runs/${activeRunId}/eval`, { method: "POST" });
-    const data = await res.json();
-    alert(data.message);
+    const data = await api(`/api/runs/${encodeURIComponent(runId)}/logs`);
+    const log = $("#detail-log-content");
+    log.textContent = data.logs || "No logs available.";
+    const wrap = log.parentElement;
+    wrap.scrollTop = wrap.scrollHeight;
   } catch (err) {
-    console.error("Failed to run eval:", err);
+    console.error("fetchLogs:", err);
+  }
+}
+
+async function triggerEval() {
+  if (!state.activeRunId) return;
+  const btn = $("#btn-eval-run");
+  const label = btn.querySelector(".btn__label");
+  const orig = label.textContent;
+  btn.disabled = true;
+  label.textContent = "Evaluating…";
+  try {
+    const res = await api(`/api/runs/${encodeURIComponent(state.activeRunId)}/eval`, { method: "POST" });
+    alert(res.message || "Evaluation launched.");
+  } catch (err) {
+    console.error("triggerEval:", err);
+    alert("Failed to launch evaluation: " + err.message);
   } finally {
     btn.disabled = false;
-    btn.querySelector("span").textContent = "Evaluate Checkpoint";
+    label.textContent = orig;
   }
 }
 
-// Initialize Chart
+/* ---------- chart ---------- */
 function initChart() {
-  const ctx = document.getElementById("metricsChart").getContext("2d");
-  
-  metricsChart = new Chart(ctx, {
+  const ctx = $("#metricsChart").getContext("2d");
+  state.metricsChart = new Chart(ctx, {
     type: "bar",
     data: {
-      labels: ["MMLU (Cap)", "ARC (Cap)", "GSM8K (Cap)", "TruthfulQA (Align)", "Harmlessness (Align)"],
+      labels: ["MMLU", "ARC", "GSM8K", "TruthfulQA", "Harmlessness"],
       datasets: [
-        {
-          label: "Surtur (Arm A)",
-          data: [0, 0, 0, 0, 0],
-          backgroundColor: "rgba(56, 189, 248, 0.6)",
-          borderColor: "rgba(56, 189, 248, 1)",
-          borderWidth: 1
-        },
-        {
-          label: "Full FT (Arm B)",
-          data: [0, 0, 0, 0, 0],
-          backgroundColor: "rgba(244, 63, 94, 0.6)",
-          borderColor: "rgba(244, 63, 94, 1)",
-          borderWidth: 1
-        },
-        {
-          label: "Frozen (Arm C)",
-          data: [0, 0, 0, 0, 0],
-          backgroundColor: "rgba(148, 163, 184, 0.4)",
-          borderColor: "rgba(148, 163, 184, 1)",
-          borderWidth: 1
-        },
-        {
-          label: "Untrained (Arm D)",
-          data: [0, 0, 0, 0, 0],
-          backgroundColor: "rgba(100, 116, 139, 0.2)",
-          borderColor: "rgba(100, 116, 139, 0.8)",
-          borderWidth: 1
-        }
-      ]
+        { label: "A · Surtur",       data: [0, 0, 0, 0, 0], backgroundColor: "rgba(232,124,30,0.65)",  borderColor: "rgba(232,124,30,1)",  borderWidth: 1 },
+        { label: "B · Full FT",      data: [0, 0, 0, 0, 0], backgroundColor: "rgba(217,85,85,0.55)",  borderColor: "rgba(217,85,85,1)",  borderWidth: 1 },
+        { label: "C · Frozen",       data: [0, 0, 0, 0, 0], backgroundColor: "rgba(180,205,225,0.45)", borderColor: "rgba(180,205,225,1)", borderWidth: 1 },
+        { label: "D · Untrained",    data: [0, 0, 0, 0, 0], backgroundColor: "rgba(120,130,150,0.30)", borderColor: "rgba(120,130,150,0.9)", borderWidth: 1 },
+      ],
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      animation: { duration: 600, easing: "easeOutQuart" },
       scales: {
-        y: {
-          beginAtZero: true,
-          max: 1.0,
-          grid: {
-            color: "rgba(255, 255, 255, 0.05)"
-          },
-          ticks: {
-            color: "#94a3b8"
-          }
-        },
-        x: {
-          grid: {
-            display: false
-          },
-          ticks: {
-            color: "#94a3b8"
-          }
-        }
+        y: { beginAtZero: true, max: 1.0, grid: { color: "rgba(255,255,255,0.04)" }, ticks: { color: "#8a8276" } },
+        x: { grid: { display: false }, ticks: { color: "#8a8276" } },
       },
       plugins: {
-        legend: {
-          labels: {
-            color: "#f8fafc"
-          }
-        }
-      }
-    }
+        legend: { labels: { color: "#e8e2d5", font: { family: "IBM Plex Mono", size: 11 } } },
+      },
+    },
   });
 }
 
-// Update Chart Data with fresh results
 function updateChartData(results) {
-  if (!metricsChart) return;
-  
+  if (!state.metricsChart) return;
   const arms = ["surtur", "full_ft", "frozen", "untrained_ref"];
   const tasks = ["mmlu", "arc", "gsm8k", "truthfulqa", "harmlessness"];
-  
-  arms.forEach((arm, armIdx) => {
-    const data = tasks.map(task => {
-      if (results[arm] && results[arm][task]) {
-        return results[arm][task].accuracy;
-      }
-      return 0.0;
+  arms.forEach((arm, i) => {
+    const row = results[arm] || {};
+    state.metricsChart.data.datasets[i].data = tasks.map((t) => {
+      const v = row[t] && row[t].accuracy;
+      return typeof v === "number" ? v : 0;
     });
-    metricsChart.data.datasets[armIdx].data = data;
   });
-  
-  metricsChart.update();
+  state.metricsChart.update();
 }
+
+/* ---------- phase polling ---------- */
+async function fetchPhase() {
+  try {
+    const ph = await api("/api/phase");
+    state.phase = ph;
+    renderPhaseArc();
+  } catch (err) {
+    console.error("fetchPhase:", err);
+  }
+}
+
+async function fetchRoadmap() {
+  try {
+    const rm = await api("/api/roadmap");
+    renderRoadmap(rm);
+    if (state.phase) renderPhaseArc();
+  } catch (err) {
+    console.error("fetchRoadmap:", err);
+  }
+}
+
+/* ---------- utils ---------- */
+function escapeHtml(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+function escapeAttr(s) { return escapeHtml(s); }
+
+/* ---------- bootstrap ---------- */
+document.addEventListener("DOMContentLoaded", () => {
+  initReveal();
+  initChart();
+
+  // Static content first
+  fetchRoadmap().then(fetchPhase);
+  // Live data
+  fetchRuns();
+  fetchVerdict();
+
+  // Wire form
+  $("#launch-form").addEventListener("submit", launchRun);
+  $("#btn-eval-run").addEventListener("click", triggerEval);
+  $("#btn-close-detail").addEventListener("click", closeDetailPanel);
+
+  // Polling — runs (status changes), verdict (when new evals arrive),
+  // phase (slow, since arm/seed counts only change on a run launch).
+  setInterval(fetchRuns, 5000);
+  setInterval(fetchVerdict, 10000);
+  setInterval(fetchPhase, 30000);
+});

@@ -213,5 +213,61 @@ class TestServerAPI(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["status"], "incomplete")
 
+    def test_get_phase_schema(self):
+        response = self.client.get("/api/phase")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn("active", data)
+        self.assertIn("milestones", data)
+        self.assertIn("per_arm", data)
+        self.assertIn(data["active"], ["M0", "M1", "M2", "M3", "M4"])
+        # Every milestone has done/label/phase
+        for mid, m in data["milestones"].items():
+            self.assertIn("done", m)
+            self.assertIn("label", m)
+            self.assertIn("phase", m)
+
+    def test_get_roadmap_schema(self):
+        response = self.client.get("/api/roadmap")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        for key in ("vision", "north_star", "principles", "phases",
+                    "not_building", "open_questions"):
+            self.assertIn(key, data)
+        self.assertEqual(len(data["principles"]), 5)
+        self.assertEqual(len(data["phases"]), 5)
+        # Not-building is explicitly the "won't" list
+        self.assertGreaterEqual(len(data["not_building"]), 5)
+
+    def test_phase_advances_with_seeds(self):
+        # Insert 5+ completed surtur and frozen runs -> M0 should be done
+        conn = db.get_db()
+        try:
+            cursor = conn.cursor()
+            for i, seed in enumerate([42, 1337, 7, 8, 9]):
+                cursor.execute("""
+                INSERT OR IGNORE INTO runs
+                  (run_id, arm, seed, model_id, method, layer_spec,
+                   config_hash, ckpt_path, duration_sec, trainable_params, total_params, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (f"sur_test_{seed}", "surtur", seed, "facebook/opt-125m",
+                      "sft", "last_4", "h", "p", 1.0, 1, 100, "completed"))
+                cursor.execute("""
+                INSERT OR IGNORE INTO runs
+                  (run_id, arm, seed, model_id, method, layer_spec,
+                   config_hash, ckpt_path, duration_sec, trainable_params, total_params, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (f"frz_test_{seed}", "frozen", seed, "facebook/opt-125m",
+                      "sft", "last_4", "h", "p", 1.0, 0, 100, "completed"))
+            conn.commit()
+        finally:
+            conn.close()
+
+        response = self.client.get("/api/phase")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data["milestones"]["M0"]["done"])
+        self.assertIn(data["active"], ["M1", "M2", "M3", "M4"])
+
 if __name__ == "__main__":
     unittest.main()

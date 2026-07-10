@@ -1,96 +1,172 @@
-<!DOCTYPE html>
+<!doctype html>
+<!--
+  ============================================================================
+  SURTUR — DASHBOARD (single-file UI, served by src/server.py)
+  ----------------------------------------------------------------------------
+  Mirrors the editorial system in /roadmap.html (ICE + EMBER palette,
+  Fraunces + IBM Plex, container-in-container) but the body is the live
+  workspace: north-star metric, phase arc, principles, the launch surface,
+  the run registry, the capability chart, and the detail panel.
+  ============================================================================
+-->
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Surtur Dashboard</title>
-  <link rel="stylesheet" href="/static/styles.css">
-  <!-- Google Fonts: Inter -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
-  <!-- Chart.js -->
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Surtur — Dashboard</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- Chart.js for the capability chart, Lucide for line icons. -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
+
+  <link rel="stylesheet" href="/static/styles.css" />
 </head>
 <body>
 
-  <!-- Fixed Atmospheric Background: Blue Laser & Volumetric Fog -->
-  <div class="laser-bg-container">
-    <div class="laser-beam"></div>
-    <div class="laser-fog"></div>
+  <!-- ===================== FIXED ATMOSPHERIC LAYER ===================== -->
+  <!-- Faint vertical laser through a smoky fog, the project's signature. -->
+  <div class="atmosphere" aria-hidden="true">
+    <div class="atmosphere__beam"></div>
+    <div class="atmosphere__fog"></div>
   </div>
 
-  <div class="dashboard-wrapper">
-    <!-- Floating Pill Navigation -->
-    <header class="floating-nav">
-      <div class="nav-brand">
-        <span class="brand-glowing-dot"></span>
-        <h1 class="brand-title">SURTUR</h1>
-        <span class="brand-subtitle">Model Safety Shield</span>
+  <!-- ===================== STICKY TOP NAV ===================== -->
+  <nav class="topnav" role="navigation">
+    <div class="topnav__inner">
+      <a href="#hero" class="topnav__brand">
+        <span class="topnav__dot" aria-hidden="true"></span>
+        <span class="topnav__word">Sur<span class="topnav__word-ember">tu</span>r</span>
+        <span class="topnav__sub">Model Safety Shield</span>
+      </a>
+      <div class="topnav__links">
+        <a href="#hero">Overview</a>
+        <a href="#arc">Phase arc</a>
+        <a href="#principles">Principles</a>
+        <a href="#workspace">Workspace</a>
+        <a href="#not-building">Scope</a>
+        <a href="#open-questions">Open Qs</a>
       </div>
-      <div class="nav-stats">
-        <div class="nav-stat-item">
-          <span class="stat-label">System State</span>
-          <span class="stat-value text-glowing-blue" id="nav-system-status">Idle</span>
-        </div>
-        <div class="nav-stat-item">
-          <span class="stat-label">Runs Captured</span>
-          <span class="stat-value" id="nav-total-runs">0</span>
-        </div>
-        <div class="nav-stat-item">
-          <span class="stat-label">Verdict Pass</span>
-          <span class="stat-value text-glowing-green" id="nav-pass-rate">—</span>
-        </div>
+      <div class="topnav__state" id="topnav-state">
+        <span class="topnav__state-label">System</span>
+        <span class="topnav__state-val" id="nav-system-status">—</span>
       </div>
-    </header>
+    </div>
+  </nav>
 
-    <main class="dashboard-content">
-      <!-- Top Row: Verdict -->
-      <section class="verdict-banner-container">
-        <div class="glass-card verdict-banner" id="verdict-banner-card">
-          <div class="verdict-header">
-            <div class="verdict-title-group">
-              <i data-lucide="shield-check" class="verdict-icon text-glowing-green"></i>
-              <div>
-                <h2 class="verdict-title">Productization Verdict: <span id="verdict-status">Evaluating Baselines...</span></h2>
-                <p class="verdict-desc">Evaluating Layer-Frozen SFT/GRPO vs Frozen and Untrained baselines (Pass iff Retention &ge; 98%, Alignment &gt; 0, Compute Ratio &le; 30%)</p>
-              </div>
-            </div>
-            <div class="verdict-badge" id="verdict-badge-label">PENDING</div>
+  <!-- ===================== HERO ===================== -->
+  <header class="hero" id="hero">
+    <div class="wrap hero-grid">
+      <div class="hero__copy reveal">
+        <div class="eyebrow">EAL · Surtur · Dashboard</div>
+        <h1>The <em>fire</em> kept at the edge — <span class="hero__title-mono">live</span></h1>
+        <p class="lede">
+          Epoch's spatial training &amp; capability-preservation runner. Post-training
+          that confines the fire of parameter optimization to the behavioral periphery
+          (the final ~10–15% of depth — e.g. layers 24–27 on a 28-layer model), keeping
+          the model's core logic engine frozen and insulated.
+        </p>
+
+        <!-- North-star callout (mirrors roadmap.html §1) -->
+        <aside class="northstar">
+          <div class="northstar__metric" id="northstar-text">
+            Hold core-eval within <b>≤2%</b> of the frozen baseline while delivering a
+            measurable alignment gain — on <i>one GPU</i> at <b>≤30%</b> the compute.
           </div>
-          <div class="verdict-failures-list" id="verdict-failures" style="display: none;"></div>
-        </div>
-      </section>
+          <div class="northstar__live" id="northstar-live">
+            <span class="northstar__pill" id="ns-retention">retention —</span>
+            <span class="northstar__pill" id="ns-compute">compute —</span>
+            <span class="northstar__pill" id="ns-alignment">alignment —</span>
+          </div>
+        </aside>
+      </div>
 
-      <!-- Main Layout Grid -->
-      <div class="layout-grid">
-        
-        <!-- Left Side: Controls & Launch -->
-        <div class="grid-column">
-          
-          <!-- Launch Run Form -->
-          <div class="glass-card">
-            <div class="card-header">
-              <i data-lucide="play" class="card-icon blue-glow"></i>
-              <h3 class="card-title">Launch Experiment Run</h3>
-            </div>
+      <!-- Cross-section: ice core at the bottom, ember periphery at the top. -->
+      <div class="cross reveal" aria-label="Model layer cross-section: frozen core with trainable periphery">
+        <div class="cross__band-labels">
+          <div class="cross__tag cross__tag--fire">Trainable fire · final ~10–15%</div>
+          <div class="cross__tag cross__tag--ice">Frozen core · insulated</div>
+        </div>
+        <div class="cross__layer-no" aria-hidden="true">↑ output</div>
+        <div class="cross__grid" aria-hidden="true"></div>
+      </div>
+      <p class="cross-caption reveal">
+        The diagram is not fixed indices — it is <em>relative depth</em>, the same
+        principle that the runner exposes as <code>last_4</code> / <code>last_8</code>.
+      </p>
+    </div>
+  </header>
+
+  <!-- ===================== PHASE ARC (P0 → P4) ===================== -->
+  <section class="arc" id="arc">
+    <div class="wrap">
+      <div class="eyebrow reveal">§1 · Phase arc</div>
+      <h2 class="reveal">Five phases, one critical path</h2>
+      <p class="sub reveal">
+        The current milestone is derived from the run registry. Click a node to see
+        the gate that must pass before the next phase unlocks.
+      </p>
+
+      <div class="arc__nodes reveal" id="arc-nodes">
+        <!-- Populated by app.js from /api/roadmap + /api/phase -->
+      </div>
+      <div class="arc__bar" aria-hidden="true">
+        <div class="arc__bar-fill" id="arc-bar-fill"></div>
+      </div>
+      <p class="arc__caption">
+        <span class="arc__legend"><i class="arc__swatch arc__swatch--ice"></i> FROZEN CORE</span>
+        <span class="arc__legend"><i class="arc__swatch arc__swatch--ember"></i> TRAINABLE PERIPHERY</span>
+        <span class="arc__legend arc__legend--right" id="arc-current-label">Current: <strong>—</strong></span>
+      </p>
+    </div>
+  </section>
+
+  <!-- ===================== STRATEGIC PRINCIPLES ===================== -->
+  <section class="principles" id="principles">
+    <div class="wrap">
+      <div class="eyebrow reveal">§2 · The lines we don't cross</div>
+      <h2 class="reveal">Five principles, in order of priority</h2>
+      <p class="sub reveal">
+        These aren't aspirations — they're the cut lines. A feature that violates
+        one is not a feature we ship.
+      </p>
+      <ol class="principles__list reveal" id="principles-list"></ol>
+    </div>
+  </section>
+
+  <!-- ===================== THE WORKSPACE ===================== -->
+  <section class="workspace" id="workspace">
+    <div class="wrap">
+      <div class="eyebrow reveal">§3 · The workspace</div>
+      <h2 class="reveal">Launch a run, watch it, see the preservation</h2>
+      <p class="sub reveal">
+        The operational surface. Submit a config, watch training, confirm the core
+        survived. No CLI heroics required.
+      </p>
+
+      <div class="workspace__grid reveal">
+
+        <!-- LEFT: Launch form + legend -->
+        <div class="workspace__col">
+          <article class="panel">
+            <header class="panel__head">
+              <span class="panel__no">01</span>
+              <h3 class="panel__title">Launch experiment</h3>
+              <span class="panel__hint" id="launch-hint">—</span>
+            </header>
+
             <form id="launch-form" class="launch-form">
-              <div class="form-group">
-                <label for="model_id">Model ID / Path</label>
-                <input type="text" id="model_id" name="model_id" value="facebook/opt-125m" required>
-              </div>
-              
               <div class="form-row">
                 <div class="form-group">
-                  <label for="arm">Experiment Arm</label>
-                  <select id="arm" name="arm">
-                    <option value="surtur">Arm A (Surtur - Layer Frozen)</option>
-                    <option value="full_ft">Arm B (Full Fine-Tune)</option>
-                    <option value="frozen">Arm C (Frozen Core Baseline)</option>
-                    <option value="untrained_ref">Arm D (Untrained Reference)</option>
-                  </select>
+                  <label for="model_id">Model</label>
+                  <input type="text" id="model_id" name="model_id"
+                         value="facebook/opt-125m" required />
                 </div>
                 <div class="form-group">
                   <label for="method">Method</label>
@@ -103,204 +179,237 @@
 
               <div class="form-row">
                 <div class="form-group">
-                  <label for="layer_spec">Layer Spec</label>
-                  <input type="text" id="layer_spec" name="layer_spec" value="last_4">
+                  <label for="arm">Arm</label>
+                  <select id="arm" name="arm">
+                    <option value="surtur">A · Surtur (layer-frozen)</option>
+                    <option value="full_ft">B · Full fine-tune</option>
+                    <option value="frozen">C · Frozen baseline</option>
+                    <option value="untrained_ref">D · Untrained reference</option>
+                  </select>
                 </div>
                 <div class="form-group">
-                  <label for="seed">RNG Seed</label>
-                  <input type="number" id="seed" name="seed" value="42" required>
+                  <label for="layer_spec">Layer spec</label>
+                  <input type="text" id="layer_spec" name="layer_spec" value="last_4" />
                 </div>
               </div>
 
-              <div class="form-group">
-                <label for="dataset_path">Dataset</label>
-                <select id="dataset_path" name="dataset_path">
-                  <option value="src/smoke_data.jsonl">Smoke Test Dataset (src/smoke_data.jsonl)</option>
-                  <option value="data/p0_train.jsonl">Production Train Dataset (data/p0_train.jsonl)</option>
-                </select>
-              </div>
-
-              <div class="advanced-toggle" onclick="toggleAdvanced()">
-                <span>Advanced Training Parameters</span>
-                <i data-lucide="chevron-down" id="advanced-chevron"></i>
-              </div>
-
-              <div id="advanced-params" class="advanced-params" style="display: none;">
-                <div class="form-row">
-                  <div class="form-group">
-                    <label for="max_steps">Max Steps</label>
-                    <input type="number" id="max_steps" name="max_steps" value="10">
-                  </div>
-                  <div class="form-group">
-                    <label for="batch_size">Batch Size</label>
-                    <input type="number" id="batch_size" name="batch_size" value="4">
-                  </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="seed">Seed</label>
+                  <input type="number" id="seed" name="seed" value="42" required />
                 </div>
-                <div class="form-row">
-                  <div class="form-group">
-                    <label for="grad_accum">Grad Accum</label>
-                    <input type="number" id="grad_accum" name="grad_accum" value="8">
-                  </div>
-                  <div class="form-group">
-                    <label for="lr">Learning Rate</label>
-                    <input type="number" step="any" id="lr" name="lr" value="5e-5">
-                  </div>
+                <div class="form-group">
+                  <label for="dataset_path">Dataset</label>
+                  <select id="dataset_path" name="dataset_path">
+                    <option value="src/smoke_data.jsonl">Smoke (src/smoke_data.jsonl)</option>
+                    <option value="data/p0_train.jsonl">P0 (data/p0_train.jsonl)</option>
+                  </select>
                 </div>
               </div>
+
+              <details class="advanced">
+                <summary>Advanced</summary>
+                <div class="advanced__grid">
+                  <div class="form-group">
+                    <label for="max_steps">Max steps</label>
+                    <input type="number" id="max_steps" name="max_steps" value="10" />
+                  </div>
+                  <div class="form-group">
+                    <label for="batch_size">Batch</label>
+                    <input type="number" id="batch_size" name="batch_size" value="4" />
+                  </div>
+                  <div class="form-group">
+                    <label for="grad_accum">Grad accum</label>
+                    <input type="number" id="grad_accum" name="grad_accum" value="8" />
+                  </div>
+                  <div class="form-group">
+                    <label for="lr">LR</label>
+                    <input type="number" step="any" id="lr" name="lr" value="5e-5" />
+                  </div>
+                </div>
+              </details>
 
               <button type="submit" class="btn btn-primary" id="btn-submit">
-                <i data-lucide="send"></i>
-                <span>Queue Training Session</span>
+                <span class="btn__arrow">›</span>
+                <span class="btn__label">Queue training session</span>
               </button>
             </form>
-          </div>
+          </article>
 
-          <!-- Parameter Summary / System Legend -->
-          <div class="glass-card">
-            <div class="card-header">
-              <i data-lucide="info" class="card-icon"></i>
-              <h3 class="card-title">Surtur Experiment Legend</h3>
-            </div>
-            <div class="legend-content">
-              <div class="legend-item">
-                <span class="legend-badge arm-a">Arm A</span>
-                <p><strong>Surtur (Layer-Frozen):</strong> Only transforms the final ~10% depth of the model. Protects core circuit parameters from gradient updates.</p>
-              </div>
-              <div class="legend-item">
-                <span class="legend-badge arm-b">Arm B</span>
-                <p><strong>Full Fine-Tune:</strong> Modifies all model parameters. Subject to Central Engine Disruption (circuit dissolution).</p>
-              </div>
-              <div class="legend-item">
-                <span class="legend-badge arm-c">Arm C</span>
-                <p><strong>Frozen Core:</strong> The untouched baseline used for computing capability retention.</p>
-              </div>
-              <div class="legend-item">
-                <span class="legend-badge arm-d">Arm D</span>
-                <p><strong>Untrained Reference:</strong> The base model used to compute relative alignment gain.</p>
-              </div>
-            </div>
-          </div>
-
+          <article class="panel">
+            <header class="panel__head">
+              <span class="panel__no">02</span>
+              <h3 class="panel__title">Arm legend</h3>
+            </header>
+            <ul class="legend">
+              <li class="legend__item">
+                <span class="legend__chip legend__chip--a">A</span>
+                <div>
+                  <strong>Surtur (layer-frozen)</strong>
+                  <p>Only the final ~10% of depth is trainable. The core is masked
+                    against gradient updates by the runner's guardrail.</p>
+                </div>
+              </li>
+              <li class="legend__item">
+                <span class="legend__chip legend__chip--b">B</span>
+                <div>
+                  <strong>Full fine-tune</strong>
+                  <p>The incumbent method. Modifies every parameter. Subject to
+                    Central Engine Disruption when the alignment gradient rips
+                    through core circuits.</p>
+                </div>
+              </li>
+              <li class="legend__item">
+                <span class="legend__chip legend__chip--c">C</span>
+                <div>
+                  <strong>Frozen baseline</strong>
+                  <p>No training. The capability reference — the floor that Surtur
+                    must hold within ≤2%.</p>
+                </div>
+              </li>
+              <li class="legend__item">
+                <span class="legend__chip legend__chip--d">D</span>
+                <div>
+                  <strong>Untrained reference</strong>
+                  <p>The base model. Surtur must beat it on alignment to count as
+                    progress.</p>
+                </div>
+              </li>
+            </ul>
+          </article>
         </div>
 
-        <!-- Right Side: Visualization & Registry -->
-        <div class="grid-column">
-          
-          <!-- Capability Chart Card -->
-          <div class="glass-card">
-            <div class="card-header">
-              <i data-lucide="line-chart" class="card-icon blue-glow"></i>
-              <h3 class="card-title">Capability Retention & Alignment Gain</h3>
-            </div>
-            <div class="chart-container">
+        <!-- RIGHT: chart + registry -->
+        <div class="workspace__col">
+          <article class="panel">
+            <header class="panel__head">
+              <span class="panel__no">03</span>
+              <h3 class="panel__title">Capability retention &amp; alignment gain</h3>
+              <span class="panel__hint" id="verdict-banner-card-inline">
+                <span class="verdict-dot verdict-dot--pending" id="verdict-dot"></span>
+                <span id="verdict-status">Evaluating</span>
+              </span>
+            </header>
+            <div class="chart">
               <canvas id="metricsChart"></canvas>
             </div>
-          </div>
+            <div class="failures" id="verdict-failures" hidden></div>
+          </article>
 
-          <!-- Historical Runs Registry -->
-          <div class="glass-card">
-            <div class="card-header">
-              <i data-lucide="database" class="card-icon"></i>
-              <h3 class="card-title">Experiment Runs Registry</h3>
-            </div>
-            <div class="registry-table-wrapper">
-              <table class="registry-table">
+          <article class="panel">
+            <header class="panel__head">
+              <span class="panel__no">04</span>
+              <h3 class="panel__title">Run registry</h3>
+              <span class="panel__hint" id="run-count">0 runs</span>
+            </header>
+            <div class="registry">
+              <table class="registry__table">
                 <thead>
                   <tr>
-                    <th>Run ID</th>
+                    <th>Run</th>
                     <th>Arm</th>
                     <th>Method</th>
+                    <th>Spec</th>
                     <th>Seed</th>
                     <th>Status</th>
-                    <th>Duration</th>
+                    <th class="num">Dur</th>
                   </tr>
                 </thead>
                 <tbody id="runs-table-body">
-                  <tr>
-                    <td colspan="6" class="text-center">Loading runs...</td>
-                  </tr>
+                  <tr><td colspan="7" class="muted text-center">Loading runs…</td></tr>
                 </tbody>
               </table>
             </div>
-          </div>
-
+          </article>
         </div>
       </div>
+    </div>
+  </section>
 
-      <!-- Detail Panel Section (Modal-like card) -->
-      <section class="detail-section" id="detail-panel" style="display: none;">
-        <div class="glass-card">
-          <div class="detail-header">
-            <div class="detail-title-group">
-              <i data-lucide="activity" class="detail-icon blue-glow"></i>
-              <div>
-                <h3 class="detail-title" id="detail-run-id">run_id_here</h3>
-                <p class="detail-subtitle">Model: <span id="detail-model-id">...</span> | Spec: <span id="detail-spec">...</span></p>
-              </div>
+  <!-- ===================== DETAIL PANEL (hidden until a run is opened) ===================== -->
+  <section class="detail" id="detail-panel" hidden>
+    <div class="wrap">
+      <article class="panel detail__panel">
+        <header class="panel__head">
+          <span class="panel__no">05</span>
+          <h3 class="panel__title" id="detail-run-id">run_id</h3>
+          <div class="panel__actions">
+            <button class="btn btn-ghost" id="btn-eval-run">
+              <span class="btn__arrow">↻</span>
+              <span class="btn__label">Evaluate checkpoint</span>
+            </button>
+            <button class="btn btn-ghost btn-close" id="btn-close-detail" aria-label="Close">×</button>
+          </div>
+        </header>
+        <p class="detail__sub" id="detail-sub">Model: — · Spec: —</p>
+
+        <div class="detail__grid">
+          <div>
+            <h4 class="section-subtitle">Evaluation metrics</h4>
+            <div class="metrics" id="detail-eval-metrics">
+              <div class="metric"><span class="metric__name">MMLU</span><span class="metric__val" id="val-mmlu">—</span></div>
+              <div class="metric"><span class="metric__name">ARC</span><span class="metric__val" id="val-arc">—</span></div>
+              <div class="metric"><span class="metric__name">GSM8K</span><span class="metric__val" id="val-gsm8k">—</span></div>
+              <div class="metric"><span class="metric__name">TruthfulQA</span><span class="metric__val" id="val-truthfulqa">—</span></div>
+              <div class="metric"><span class="metric__name">Harmlessness</span><span class="metric__val" id="val-harmlessness">—</span></div>
+              <div class="metric"><span class="metric__name">Pass-through</span><span class="metric__val" id="val-pass-through">—</span></div>
             </div>
-            <div class="detail-actions">
-              <button class="btn btn-outline" id="btn-eval-run">
-                <i data-lucide="refresh-cw"></i>
-                <span>Evaluate Checkpoint</span>
-              </button>
-              <button class="btn btn-outline btn-close" onclick="closeDetailPanel()">
-                <i data-lucide="x"></i>
-              </button>
+            <div class="slicing" id="detail-slicing-info">
+              <p class="muted">No evaluation completed for this run.</p>
             </div>
           </div>
-
-          <div class="detail-grid">
-            <!-- Left Side: Evaluation Results -->
-            <div class="detail-column">
-              <h4 class="section-subtitle">Evaluation Metrics</h4>
-              <div class="eval-metrics-grid" id="detail-eval-metrics">
-                <div class="eval-metric-box">
-                  <div class="eval-metric-name">MMLU Accuracy</div>
-                  <div class="eval-metric-value" id="val-mmlu">—</div>
-                </div>
-                <div class="eval-metric-box">
-                  <div class="eval-metric-name">ARC Accuracy</div>
-                  <div class="eval-metric-value" id="val-arc">—</div>
-                </div>
-                <div class="eval-metric-box">
-                  <div class="eval-metric-name">GSM8K Accuracy</div>
-                  <div class="eval-metric-value" id="val-gsm8k">—</div>
-                </div>
-                <div class="eval-metric-box">
-                  <div class="eval-metric-name">TruthfulQA Accuracy</div>
-                  <div class="eval-metric-value" id="val-truthfulqa">—</div>
-                </div>
-                <div class="eval-metric-box">
-                  <div class="eval-metric-name">Harmlessness Accuracy</div>
-                  <div class="eval-metric-value" id="val-harmlessness">—</div>
-                </div>
-                <div class="eval-metric-box">
-                  <div class="eval-metric-name">Helpfulness Pass-Through</div>
-                  <div class="eval-metric-value" id="val-pass-through">—</div>
-                </div>
-              </div>
-              
-              <div class="slicing-panel">
-                <h5 class="slicing-title">Adversarial Slices & Distributions</h5>
-                <div id="detail-slicing-info">
-                  <p class="muted">No evaluation completed for this run.</p>
-                </div>
-              </div>
-            </div>
-
-            <!-- Right Side: Live Logs -->
-            <div class="detail-column">
-              <h4 class="section-subtitle">Stdout / Stderr Logs</h4>
-              <div class="log-viewer">
-                <pre id="detail-log-content">Waiting for logs...</pre>
-              </div>
-            </div>
+          <div>
+            <h4 class="section-subtitle">Live stdout / stderr</h4>
+            <pre class="log" id="detail-log-content">Waiting for logs…</pre>
           </div>
         </div>
-      </section>
+      </article>
+    </div>
+  </section>
 
-    </main>
-  </div>
+  <!-- ===================== NOT BUILDING ===================== -->
+  <section class="not-building" id="not-building">
+    <div class="wrap">
+      <div class="eyebrow reveal">§4 · What we are explicitly NOT building</div>
+      <h2 class="reveal">The cut lines are deliberate</h2>
+      <p class="sub reveal">
+        A roadmap is what we chose <em>not</em> to do. Every item below is a good
+        idea that we have agreed to defer or refuse.
+      </p>
+      <ul class="cutlist reveal" id="cutlist"></ul>
+    </div>
+  </section>
+
+  <!-- ===================== OPEN QUESTIONS ===================== -->
+  <section class="open-q" id="open-questions">
+    <div class="wrap">
+      <div class="eyebrow reveal">§5 · Open decisions for the team</div>
+      <h2 class="reveal">Five questions still on the table</h2>
+      <p class="sub reveal">
+        Until these are resolved, the M0 sign-off cannot pass.
+      </p>
+      <ol class="open-q__list reveal" id="open-q-list"></ol>
+    </div>
+  </section>
+
+  <!-- ===================== FOOTER ===================== -->
+  <footer>
+    <div class="wrap footer__inner">
+      <div>
+        <div class="footer__brand">Sur<span>tu</span>r</div>
+        <p class="footer__tag">Constraint strategy, not new architecture.</p>
+      </div>
+      <div class="footer__meta">
+        <span>v0.4.0 · dashboard</span>
+        <span class="footer__sep" aria-hidden="true">·</span>
+        <a href="/api/phase" target="_blank" rel="noopener">/api/phase</a>
+        <span class="footer__sep" aria-hidden="true">·</span>
+        <a href="/api/roadmap" target="_blank" rel="noopener">/api/roadmap</a>
+        <span class="footer__sep" aria-hidden="true">·</span>
+        <a href="/api/verdict" target="_blank" rel="noopener">/api/verdict</a>
+      </div>
+    </div>
+  </footer>
 
   <script src="/static/app.js"></script>
 </body>

@@ -115,8 +115,8 @@ def eval_mmlu(model, tokenizer, max_examples=None, per_item_log=None):
     }
 
 def eval_arc(model, tokenizer, max_examples=None, per_item_log=None):
-    ds_challenge = load_dataset("ai2_arc", "ARC-Challenge", split="test")
-    ds_easy = load_dataset("ai2_arc", "ARC-Easy", split="test")
+    ds_challenge = load_dataset("allenai/ai2_arc", "ARC-Challenge", split="test")
+    ds_easy = load_dataset("allenai/ai2_arc", "ARC-Easy", split="test")
     
     combined = []
     for ex in ds_challenge:

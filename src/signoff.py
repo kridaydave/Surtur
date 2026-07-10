@@ -28,7 +28,7 @@ def main():
         return
         
     runs = []
-    with open(args.runs, "r") as f:
+    with open(args.runs, "r", encoding="utf-8") as f:
         for line in f:
             if line.strip():
                 try:
@@ -42,7 +42,7 @@ def main():
         return
         
     evals = []
-    with open(args.evals, "r") as f:
+    with open(args.evals, "r", encoding="utf-8") as f:
         for line in f:
             if line.strip():
                 try:
@@ -178,7 +178,7 @@ def main():
         "arm_stats": arm_stats,
         "failures": verdict["failures"]
     }
-    with open(os.path.join(args.out_dir, "M0_verdict.json"), "w") as f:
+    with open(os.path.join(args.out_dir, "M0_verdict.json"), "w", encoding="utf-8") as f:
         json.dump(json_out, f, indent=2)
 
     # Save verdict Markdown
@@ -213,7 +213,7 @@ def main():
         for fail in verdict["failures"]:
             md_lines.append(f"- {fail}")
             
-    with open(os.path.join(args.out_dir, "M0_verdict.md"), "w") as f:
+    with open(os.path.join(args.out_dir, "M0_verdict.md"), "w", encoding="utf-8") as f:
         f.write("\n".join(md_lines) + "\n")
 
     # Generate HTML results_figure
@@ -229,7 +229,7 @@ def main():
         seeds=len(arm_runs.get("surtur", [])),
         failures=verdict["failures"]
     )
-    with open(os.path.join(args.out_dir, "M0_verdict.html"), "w") as f:
+    with open(os.path.join(args.out_dir, "M0_verdict.html"), "w", encoding="utf-8") as f:
         f.write(html_content)
 
     print(f"[Sign-Off] Completed. Verdict: {verdict_status}.")
