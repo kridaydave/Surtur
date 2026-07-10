@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Surtur — P0 Results</title>
+<style>
+  :root {
+    --bg: #08090b;
+    --bg-elev: #111317;
+    --border: #1f2227;
+    --ember: #ff6a3d;
+    --ember-dim: #c44a26;
+    --steel: #9fb0c3;
+    --steel-dim: #5a6776;
+    --text: #d8dee5;
+    --text-dim: #6b7682;
+    --pass: #4ade80;
+    --fail: #ef4444;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', -apple-system, sans-serif;
+    line-height: 1.5;
+    padding: 48px 24px;
+  }
+  .container { max-width: 1200px; margin: 0 auto; }
+  .header {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 32px;
+    margin-bottom: 48px;
+  }
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ember);
+    margin-bottom: 12px;
+  }
+  h1 {
+    font-size: 42px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+  .subtitle {
+    font-size: 16px;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 24px;
+  }
+  .panel {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 24px;
+  }
+  .panel-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--steel);
+    margin-bottom: 4px;
+  }
+  .panel-sub {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-bottom: 20px;
+  }
+  .full { grid-column: 1 / -1; }
+  svg { display: block; width: 100%; }
+  .bar { fill: var(--ember); transition: opacity 0.2s; }
+  .bar:hover { opacity: 0.8; }
+  .bar-fail { fill: var(--fail); }
+  .threshold { stroke: var(--steel); stroke-width: 1; stroke-dasharray: 4 3; }
+  .threshold-label { fill: var(--steel); font-size: 10px; font-family: 'JetBrains Mono', monospace; }
+  .axis { stroke: var(--border); stroke-width: 1; }
+  .axis-label { fill: var(--text-dim); font-size: 11px; font-family: 'JetBrains Mono', monospace; }
+  .bar-label { fill: var(--text); font-size: 12px; font-family: 'JetBrains Mono', monospace; font-weight: 600; }
+  .verdict {
+    text-align: center;
+    padding: 48px 24px;
+  }
+  .verdict-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 16px;
+  }
+  .verdict-value {
+    font-size: 72px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1;
+  }
+  .verdict-pass { color: var(--pass); }
+  .verdict-fail { color: var(--fail); }
+  .verdict-detail {
+    margin-top: 24px;
+    font-size: 14px;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+  }
+  th {
+    text-align: left;
+    padding: 8px 12px;
+    color: var(--text-dim);
+    font-weight: 500;
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+  }
+  tr:last-child td { border-bottom: none; }
+  .ok { color: var(--pass); }
+  .bad { color: var(--fail); }
+  .meta {
+    margin-top: 48px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    display: flex;
+    justify-content: space-between;
+  }
+  .placeholder {
+    background: rgba(255, 106, 61, 0.08);
+    border-left: 2px solid var(--ember);
+    padding: 12px 16px;
+    font-size: 12px;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+    margin-top: 16px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <div class="eyebrow">P0 — Validate the core claim</div>
+    <h1>Capability Retention &amp; Alignment Gain</h1>
+    <div class="subtitle">Surtur vs Full Fine-Tune vs Frozen Baseline · <span id="meta-model">Qwen/Qwen2.5-1.5B</span> · <span id="meta-seeds">5 seeds</span></div>
+  </div>
+
+  <!-- ===== CAPABILITY RETENTION ===== -->
+  <div class="grid">
+    <div class="panel full">
+      <div class="panel-title">Capability Retention</div>
+      <div class="panel-sub">Surtur ÷ Frozen baseline. Threshold = 0.98 per domain. No domain may launder a drop.</div>
+      <svg viewBox="0 0 800 280" id="chart-retention">
+        <line class="axis" x1="60" y1="20" x2="60" y2="220"/>
+        <line class="axis" x1="60" y1="220" x2="780" y2="220"/>
+        <line class="threshold" x1="60" y1="24" x2="780" y2="24"/>
+        <text class="threshold-label" x="780" y="18" text-anchor="end">≥ 0.98</text>
+        <text class="axis-label" x="48" y="224" text-anchor="end">0.90</text>
+        <text class="axis-label" x="48" y="124" text-anchor="end">0.95</text>
+        <text class="axis-label" x="48" y="24" text-anchor="end">1.00</text>
+        <!-- bars will be injected by make_figure.py or static below -->
+        <g id="retention-bars">
+          <rect class="bar" x="140" y="46" width="120" height="174"/><text class="bar-label" x="200" y="36" text-anchor="middle">0.987</text><text class="axis-label" x="200" y="240" text-anchor="middle">MMLU</text>
+          <rect class="bar" x="330" y="38" width="120" height="182"/><text class="bar-label" x="390" y="28" text-anchor="middle">0.991</text><text class="axis-label" x="390" y="240" text-anchor="middle">HellaSwag</text>
+          <rect class="bar" x="520" y="42" width="120" height="178"/><text class="bar-label" x="580" y="32" text-anchor="middle">0.989</text><text class="axis-label" x="580" y="240" text-anchor="middle">GSM8K</text>
+        </g>
+      </svg>
+    </div>
+  </div>
+
+  <!-- ===== ALIGNMENT GAIN ===== -->
+  <div class="grid">
+    <div class="panel">
+      <div class="panel-title">Alignment Gain</div>
+      <div class="panel-sub">Surtur − Untrained. Must be &gt; 0 on both.</div>
+      <svg viewBox="0 0 400 240" id="chart-alignment">
+        <line class="axis" x1="60" y1="20" x2="60" y2="180"/>
+        <line class="axis" x1="60" y1="180" x2="380" y2="180"/>
+        <line class="threshold" x1="60" y1="180" x2="380" y2="180"/>
+        <text class="threshold-label" x="380" y="174" text-anchor="end">0</text>
+        <text class="axis-label" x="48" y="184" text-anchor="end">0%</text>
+        <text class="axis-label" x="48" y="24" text-anchor="end">+20%</text>
+        <rect class="bar" x="100" y="179" width="80" height="1"/><text class="bar-label" x="140" y="169" text-anchor="middle">+12%</text><text class="axis-label" x="140" y="200" text-anchor="middle">TruthfulQA</text>
+          <rect class="bar" x="240" y="179" width="80" height="1"/><text class="bar-label" x="280" y="169" text-anchor="middle">+9%</text><text class="axis-label" x="280" y="200" text-anchor="middle">harmlessness</text>
+      </svg>
+    </div>
+
+    <!-- ===== COMPUTE RATIO ===== -->
+    <div class="panel">
+      <div class="panel-title">Compute Ratio</div>
+      <div class="panel-sub">Surtur GPU-hrs ÷ Full FT GPU-hrs. Must be ≤ 0.30.</div>
+      <svg viewBox="0 0 400 240" id="chart-compute">
+        <line class="axis" x1="60" y1="20" x2="60" y2="180"/>
+        <line class="axis" x1="60" y1="180" x2="380" y2="180"/>
+        <line class="threshold" x1="360" y1="20" x2="360" y2="180"/>
+        <text class="threshold-label" x="354" y="14" text-anchor="end">0.30</text>
+        <text class="axis-label" x="48" y="184" text-anchor="end">0%</text>
+        <text class="axis-label" x="48" y="24" text-anchor="end">100%</text>
+        <rect class="bar" x="160" y="100" width="80" height="80"/>
+        <text class="bar-label" x="200" y="90" text-anchor="middle">0.22</text>
+        <text class="axis-label" x="200" y="200" text-anchor="middle">Surtur ÷ Full FT</text>
+      </svg>
+    </div>
+  </div>
+
+  <!-- ===== VERDICT ===== -->
+  <div class="panel full verdict">
+    <div class="verdict-label">Verdict</div>
+    <div class="verdict-value verdict-pass" id="verdict">PASS</div>
+    <div class="verdict-detail" id="verdict-detail">All three gates cleared: retention ≥ 0.98 per domain · alignment gain &gt; 0 on both · compute ratio ≤ 0.30.</div>
+  </div>
+
+  <!-- ===== PER-SEED TABLE ===== -->
+  <div class="panel full" style="margin-top: 24px;">
+    <div class="panel-title">Per-Seed Retention (mean ± std)</div>
+    <div class="panel-sub">Gauge requirement: ≥ 5 seeds. Gap inside run-to-run spread is not a pass.</div>
+    <table>
+      <thead>
+        <tr><th>Domain</th><th>Retention</th><th>Std</th><th>n seeds</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>MMLU</td><td>0.987</td><td>±0.003</td><td>5</td><td class="ok">✓ PASS</td></tr>
+        <tr><td>HellaSwag</td><td>0.991</td><td>±0.002</td><td>5</td><td class="ok">✓ PASS</td></tr>
+        <tr><td>GSM8K</td><td>0.989</td><td>±0.004</td><td>5</td><td class="ok">✓ PASS</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="placeholder">
+    PLACEHOLDER DATA — Replace static bars and table with real P0 output.<br>
+    Run: <code>python make_figure.py --results results.json --out results_figure.html</code>
+  </div>
+
+  <div class="meta">
+    <span>Surtur · P0 Results Figure</span>
+    <span>Generated: <span id="meta-date">2026-07-10</span></span>
+  </div>
+
+</div>
+</body>
+</html>

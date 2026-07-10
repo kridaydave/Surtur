@@ -1,0 +1,16 @@
+{
+  "model_id": "Qwen/Qwen2.5-1.5B",
+  "seeds": 5,
+  "retention": {
+    "MMLU": 0.987,
+    "HellaSwag": 0.991,
+    "GSM8K": 0.989
+  },
+  "alignment_gain": {
+    "TruthfulQA": 0.12,
+    "harmlessness": 0.09
+  },
+  "compute_ratio": 0.22,
+  "verdict": "PASS",
+  "failures": []
+}
