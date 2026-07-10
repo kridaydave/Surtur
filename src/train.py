@@ -83,9 +83,9 @@ def run(config: TrainingConfig) -> None:
     num_epochs = config.num_epochs if config.num_epochs > 0 else 1.0
     common = dict(
         output_dir=config.output_dir,
-        per_device_train_batch_size=config.batch_size,
-        gradient_accumulation_steps=config.grad_accum,
-        max_steps=config.max_steps,
+        per_device_train_batch_size=int(config.batch_size),
+        gradient_accumulation_steps=int(config.grad_accum),
+        max_steps=int(config.max_steps),
         num_train_epochs=num_epochs,
         learning_rate=float(config.lr),
         seed=int(config.seed),
