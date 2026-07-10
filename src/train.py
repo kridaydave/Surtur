@@ -11,6 +11,7 @@ except ImportError:
 
 from dataclasses import dataclass, field
 from typing import Callable, List, Optional
+import os
 
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -20,6 +21,7 @@ from trl import SFTTrainer, SFTConfig, GRPOTrainer, GRPOConfig
 import freeze
 import guard
 from callbacks import GradientInsulationCallback
+from seed import set_seed, enable_deterministic
 
 
 @dataclass
@@ -56,6 +58,9 @@ def build_dataset(dataset_path: str):
 
 
 def run(config: TrainingConfig) -> None:
+    set_seed(int(config.seed))
+    if os.environ.get("SURTUR_DETERMINISTIC") == "1":
+        enable_deterministic()
     device = "cuda" if torch.cuda.is_available() else "cpu"
     use_bf16 = config.dtype == "bf16" and device == "cuda"
     use_fp16 = config.dtype == "fp16" and device == "cuda"
