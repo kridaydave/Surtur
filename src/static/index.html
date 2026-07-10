@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Surtur Dashboard</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+
+  <!-- Fixed Atmospheric Background: Blue Laser & Volumetric Fog -->
+  <div class="laser-bg-container">
+    <div class="laser-beam"></div>
+    <div class="laser-fog"></div>
+  </div>
+
+  <div class="dashboard-wrapper">
+    <!-- Floating Pill Navigation -->
+    <header class="floating-nav">
+      <div class="nav-brand">
+        <span class="brand-glowing-dot"></span>
+        <h1 class="brand-title">SURTUR</h1>
+        <span class="brand-subtitle">Model Safety Shield</span>
+      </div>
+      <div class="nav-stats">
+        <div class="nav-stat-item">
+          <span class="stat-label">System State</span>
+          <span class="stat-value text-glowing-blue" id="nav-system-status">Idle</span>
+        </div>
+        <div class="nav-stat-item">
+          <span class="stat-label">Runs Captured</span>
+          <span class="stat-value" id="nav-total-runs">0</span>
+        </div>
+        <div class="nav-stat-item">
+          <span class="stat-label">Verdict Pass</span>
+          <span class="stat-value text-glowing-green" id="nav-pass-rate">—</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="dashboard-content">
+      <!-- Top Row: Verdict -->
+      <section class="verdict-banner-container">
+        <div class="glass-card verdict-banner" id="verdict-banner-card">
+          <div class="verdict-header">
+            <div class="verdict-title-group">
+              <i data-lucide="shield-check" class="verdict-icon text-glowing-green"></i>
+              <div>
+                <h2 class="verdict-title">Productization Verdict: <span id="verdict-status">Evaluating Baselines...</span></h2>
+                <p class="verdict-desc">Evaluating Layer-Frozen SFT/GRPO vs Frozen and Untrained baselines (Pass iff Retention &ge; 98%, Alignment &gt; 0, Compute Ratio &le; 30%)</p>
+              </div>
+            </div>
+            <div class="verdict-badge" id="verdict-badge-label">PENDING</div>
+          </div>
+          <div class="verdict-failures-list" id="verdict-failures" style="display: none;"></div>
+        </div>
+      </section>
+
+      <!-- Main Layout Grid -->
+      <div class="layout-grid">
+        
+        <!-- Left Side: Controls & Launch -->
+        <div class="grid-column">
+          
+          <!-- Launch Run Form -->
+          <div class="glass-card">
+            <div class="card-header">
+              <i data-lucide="play" class="card-icon blue-glow"></i>
+              <h3 class="card-title">Launch Experiment Run</h3>
+            </div>
+            <form id="launch-form" class="launch-form">
+              <div class="form-group">
+                <label for="model_id">Model ID / Path</label>
+                <input type="text" id="model_id" name="model_id" value="facebook/opt-125m" required>
+              </div>
+              
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="arm">Experiment Arm</label>
+                  <select id="arm" name="arm">
+                    <option value="surtur">Arm A (Surtur - Layer Frozen)</option>
+                    <option value="full_ft">Arm B (Full Fine-Tune)</option>
+                    <option value="frozen">Arm C (Frozen Core Baseline)</option>
+                    <option value="untrained_ref">Arm D (Untrained Reference)</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="method">Method</label>
+                  <select id="method" name="method">
+                    <option value="sft">SFT</option>
+                    <option value="grpo">GRPO</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="layer_spec">Layer Spec</label>
+                  <input type="text" id="layer_spec" name="layer_spec" value="last_4">
+                </div>
+                <div class="form-group">
+                  <label for="seed">RNG Seed</label>
+                  <input type="number" id="seed" name="seed" value="42" required>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="dataset_path">Dataset</label>
+                <select id="dataset_path" name="dataset_path">
+                  <option value="src/smoke_data.jsonl">Smoke Test Dataset (src/smoke_data.jsonl)</option>
+                  <option value="data/p0_train.jsonl">Production Train Dataset (data/p0_train.jsonl)</option>
+                </select>
+              </div>
+
+              <div class="advanced-toggle" onclick="toggleAdvanced()">
+                <span>Advanced Training Parameters</span>
+                <i data-lucide="chevron-down" id="advanced-chevron"></i>
+              </div>
+
+              <div id="advanced-params" class="advanced-params" style="display: none;">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="max_steps">Max Steps</label>
+                    <input type="number" id="max_steps" name="max_steps" value="10">
+                  </div>
+                  <div class="form-group">
+                    <label for="batch_size">Batch Size</label>
+                    <input type="number" id="batch_size" name="batch_size" value="4">
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="grad_accum">Grad Accum</label>
+                    <input type="number" id="grad_accum" name="grad_accum" value="8">
+                  </div>
+                  <div class="form-group">
+                    <label for="lr">Learning Rate</label>
+                    <input type="number" step="any" id="lr" name="lr" value="5e-5">
+                  </div>
+                </div>
+              </div>
+
+              <button type="submit" class="btn btn-primary" id="btn-submit">
+                <i data-lucide="send"></i>
+                <span>Queue Training Session</span>
+              </button>
+            </form>
+          </div>
+
+          <!-- Parameter Summary / System Legend -->
+          <div class="glass-card">
+            <div class="card-header">
+              <i data-lucide="info" class="card-icon"></i>
+              <h3 class="card-title">Surtur Experiment Legend</h3>
+            </div>
+            <div class="legend-content">
+              <div class="legend-item">
+                <span class="legend-badge arm-a">Arm A</span>
+                <p><strong>Surtur (Layer-Frozen):</strong> Only transforms the final ~10% depth of the model. Protects core circuit parameters from gradient updates.</p>
+              </div>
+              <div class="legend-item">
+                <span class="legend-badge arm-b">Arm B</span>
+                <p><strong>Full Fine-Tune:</strong> Modifies all model parameters. Subject to Central Engine Disruption (circuit dissolution).</p>
+              </div>
+              <div class="legend-item">
+                <span class="legend-badge arm-c">Arm C</span>
+                <p><strong>Frozen Core:</strong> The untouched baseline used for computing capability retention.</p>
+              </div>
+              <div class="legend-item">
+                <span class="legend-badge arm-d">Arm D</span>
+                <p><strong>Untrained Reference:</strong> The base model used to compute relative alignment gain.</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Right Side: Visualization & Registry -->
+        <div class="grid-column">
+          
+          <!-- Capability Chart Card -->
+          <div class="glass-card">
+            <div class="card-header">
+              <i data-lucide="line-chart" class="card-icon blue-glow"></i>
+              <h3 class="card-title">Capability Retention & Alignment Gain</h3>
+            </div>
+            <div class="chart-container">
+              <canvas id="metricsChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Historical Runs Registry -->
+          <div class="glass-card">
+            <div class="card-header">
+              <i data-lucide="database" class="card-icon"></i>
+              <h3 class="card-title">Experiment Runs Registry</h3>
+            </div>
+            <div class="registry-table-wrapper">
+              <table class="registry-table">
+                <thead>
+                  <tr>
+                    <th>Run ID</th>
+                    <th>Arm</th>
+                    <th>Method</th>
+                    <th>Seed</th>
+                    <th>Status</th>
+                    <th>Duration</th>
+                  </tr>
+                </thead>
+                <tbody id="runs-table-body">
+                  <tr>
+                    <td colspan="6" class="text-center">Loading runs...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Detail Panel Section (Modal-like card) -->
+      <section class="detail-section" id="detail-panel" style="display: none;">
+        <div class="glass-card">
+          <div class="detail-header">
+            <div class="detail-title-group">
+              <i data-lucide="activity" class="detail-icon blue-glow"></i>
+              <div>
+                <h3 class="detail-title" id="detail-run-id">run_id_here</h3>
+                <p class="detail-subtitle">Model: <span id="detail-model-id">...</span> | Spec: <span id="detail-spec">...</span></p>
+              </div>
+            </div>
+            <div class="detail-actions">
+              <button class="btn btn-outline" id="btn-eval-run">
+                <i data-lucide="refresh-cw"></i>
+                <span>Evaluate Checkpoint</span>
+              </button>
+              <button class="btn btn-outline btn-close" onclick="closeDetailPanel()">
+                <i data-lucide="x"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="detail-grid">
+            <!-- Left Side: Evaluation Results -->
+            <div class="detail-column">
+              <h4 class="section-subtitle">Evaluation Metrics</h4>
+              <div class="eval-metrics-grid" id="detail-eval-metrics">
+                <div class="eval-metric-box">
+                  <div class="eval-metric-name">MMLU Accuracy</div>
+                  <div class="eval-metric-value" id="val-mmlu">—</div>
+                </div>
+                <div class="eval-metric-box">
+                  <div class="eval-metric-name">ARC Accuracy</div>
+                  <div class="eval-metric-value" id="val-arc">—</div>
+                </div>
+                <div class="eval-metric-box">
+                  <div class="eval-metric-name">GSM8K Accuracy</div>
+                  <div class="eval-metric-value" id="val-gsm8k">—</div>
+                </div>
+                <div class="eval-metric-box">
+                  <div class="eval-metric-name">TruthfulQA Accuracy</div>
+                  <div class="eval-metric-value" id="val-truthfulqa">—</div>
+                </div>
+                <div class="eval-metric-box">
+                  <div class="eval-metric-name">Harmlessness Accuracy</div>
+                  <div class="eval-metric-value" id="val-harmlessness">—</div>
+                </div>
+                <div class="eval-metric-box">
+                  <div class="eval-metric-name">Helpfulness Pass-Through</div>
+                  <div class="eval-metric-value" id="val-pass-through">—</div>
+                </div>
+              </div>
+              
+              <div class="slicing-panel">
+                <h5 class="slicing-title">Adversarial Slices & Distributions</h5>
+                <div id="detail-slicing-info">
+                  <p class="muted">No evaluation completed for this run.</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Side: Live Logs -->
+            <div class="detail-column">
+              <h4 class="section-subtitle">Stdout / Stderr Logs</h4>
+              <div class="log-viewer">
+                <pre id="detail-log-content">Waiting for logs...</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

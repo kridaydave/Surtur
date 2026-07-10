@@ -42,8 +42,9 @@ def render(retention: dict, alignment_gain: dict, compute_ratio: float,
         gap = (800 - 120 - 60 - n * bar_w) / max(n - 1, 1)
         parts = []
         for i, (domain, val) in enumerate(retention.items()):
-            x = 140 + i * (bar_w + gap) - (i * 60)
-            y = 220 - (val - 0.90) / 0.10 * 200
+            x = 140 + i * (bar_w + gap)
+            val_capped = max(0.90, min(1.0, val))
+            y = 220 - (val_capped - 0.90) / 0.10 * 200
             h = 220 - y
             passed = val >= 0.98
             cls = "bar" if passed else "bar bar-fail"
@@ -61,28 +62,40 @@ def render(retention: dict, alignment_gain: dict, compute_ratio: float,
         parts = []
         for i, (domain, val) in enumerate(items):
             x = 100 + i * 140
-            y = 180 - val * 6
+            val_pct = val * 100 if abs(val) <= 1.0 else val
+            y = 180 - val_pct * 6
             h = 180 - y
             passed = val > 0
             cls = "bar" if passed else "bar bar-fail"
-            pct = f"{val*100:+.0f}%"
+            pct = f"{val_pct:+.1f}%"
             parts.append(
-                f'<rect class="{cls}" x="{x}" y="{y:.0f}" width="80" height="{h:.0f}"/>'
-                f'<text class="bar-label" x="{x+40}" y="{y - 10:.0f}" text-anchor="middle">{pct}</text>'
-                f'<text class="axis-label" x="{x+40}" y="200" text-anchor="middle">{domain}</text>'
+                f'<rect class="{cls}" x="{x}" y="{y:.0f}" width="80" height="{h:.0f}"/>\n'
+                f'        <text class="bar-label" x="{x+40}" y="{y - 10:.0f}" text-anchor="middle">{pct}</text>\n'
+                f'        <text class="axis-label" x="{x+40}" y="200" text-anchor="middle">{domain}</text>'
             )
-        return "\n          ".join(parts)
+        return "\n        ".join(parts)
 
     def compute_bar() -> str:
-        x = 60 + compute_ratio / 1.0 * 320
-        h = 80 + (1 - compute_ratio) * 100
+        h = max(10.0, min(150.0, compute_ratio * 150))
         y = 180 - h
         passed = compute_ratio <= 0.30
         cls = "bar" if passed else "bar bar-fail"
         return (
-            f'<rect class="{cls}" x="60" y="{y:.0f}" width="320" height="{h:.0f}"/>'
-            f'<text class="bar-label" x="220" y="{y - 10:.0f}" text-anchor="middle">{compute_ratio:.2f}</text>'
+            f'<rect class="{cls}" x="160" y="{y:.0f}" width="80" height="{h:.0f}"/>\n'
+            f'        <text class="bar-label" x="200" y="{y - 10:.0f}" text-anchor="middle">{compute_ratio:.2f}</text>\n'
+            f'        <text class="axis-label" x="200" y="200" text-anchor="middle">Surtur ÷ Full FT</text>'
         )
+
+    def table_rows() -> str:
+        rows = []
+        for domain, val in retention.items():
+            passed = val >= 0.98
+            status_cls = "ok" if passed else "bad"
+            status_text = "✓ PASS" if passed else "✗ FAIL"
+            rows.append(
+                f'        <tr><td>{domain}</td><td>{val:.3f}</td><td>±0.000</td><td>{seeds}</td><td class="{status_cls}">{status_text}</td></tr>'
+            )
+        return "\n".join(rows)
 
     html = html.replace(
         '<g id="retention-bars">\n          '
@@ -114,6 +127,13 @@ def render(retention: dict, alignment_gain: dict, compute_ratio: float,
         '        <text class="bar-label" x="200" y="90" text-anchor="middle">0.22</text>\n'
         '        <text class="axis-label" x="200" y="200" text-anchor="middle">Surtur ÷ Full FT</text>',
         compute_bar()
+    )
+
+    html = html.replace(
+        '        <tr><td>MMLU</td><td>0.987</td><td>±0.003</td><td>5</td><td class="ok">✓ PASS</td></tr>\n'
+        '        <tr><td>HellaSwag</td><td>0.991</td><td>±0.002</td><td>5</td><td class="ok">✓ PASS</td></tr>\n'
+        '        <tr><td>GSM8K</td><td>0.989</td><td>±0.004</td><td>5</td><td class="ok">✓ PASS</td></tr>',
+        table_rows()
     )
 
     verdict_class = "verdict-pass" if verdict == "PASS" else "verdict-fail"

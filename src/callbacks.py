@@ -9,10 +9,10 @@ class GradientInsulationCallback(TrainerCallback):
     def __init__(self, model=None, epsilon: float = 1e-6):
         self.model = model
         self.epsilon = epsilon
-        self.verified = False
+        self.verified_once = False
 
     def _verify(self, model) -> None:
-        if self.verified or model is None:
+        if model is None:
             return
         frozen_leaked = []
         trainable_count = 0
@@ -32,18 +32,15 @@ class GradientInsulationCallback(TrainerCallback):
                 f"received gradients (e.g. {sample}). Surtur premise broken."
             )
 
-        self.verified = True
-        print(
-            f"[Surtur] Insulation verified: {trainable_count} trainable params, "
-            f"all frozen params at 0.0 grad norm."
-        )
+        if not self.verified_once:
+            self.verified_once = True
+            print(
+                f"[Surtur] Insulation verified: {trainable_count} trainable params, "
+                f"all frozen params at 0.0 grad norm."
+            )
 
     def on_substep_end(self, args, state, control, model=None, **kwargs):
-        if self.verified:
-            return
         self._verify(model or self.model or kwargs.get("model"))
 
     def on_pre_optimizer_step(self, args, state, control, model=None, **kwargs):
-        if self.verified:
-            return
         self._verify(model or self.model or kwargs.get("model"))

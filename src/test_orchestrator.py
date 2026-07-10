@@ -33,13 +33,14 @@ def test_orchestrator_smoke():
 
     for r in results:
         assert os.path.isdir(r["checkpoint"]), f"Missing checkpoint: {r['checkpoint']}"
-        assert r["trainable_params"] > 0
         assert r["duration"] >= 0
 
     surtur_r = next(r for r in results if r["arm"] == "surtur")
     frozen_r = next(r for r in results if r["arm"] == "frozen")
-    assert surtur_r["trainable_params"] < frozen_r["trainable_params"], (
-        f"Surtur should have fewer trainable params than frozen "
+    assert surtur_r["trainable_params"] > 0, "Surtur arm should have trainable parameters"
+    assert frozen_r["trainable_params"] == 0, "Frozen arm should have 0 trainable parameters"
+    assert surtur_r["trainable_params"] > frozen_r["trainable_params"], (
+        f"Surtur should have more trainable params than frozen "
         f"({surtur_r['trainable_params']} vs {frozen_r['trainable_params']})"
     )
 

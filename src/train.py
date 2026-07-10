@@ -61,13 +61,25 @@ def run(config: TrainingConfig) -> None:
     set_seed(int(config.seed))
     if os.environ.get("SURTUR_DETERMINISTIC") == "1":
         enable_deterministic()
+        
+    if config.dataset_path:
+        import data_utils
+        data_utils.verify(config.dataset_path)
+        
     device = "cuda" if torch.cuda.is_available() else "cpu"
     use_bf16 = config.dtype == "bf16" and device == "cuda"
     use_fp16 = config.dtype == "fp16" and device == "cuda"
+    
+    if config.dtype == "bf16":
+        torch_dtype = torch.bfloat16
+    elif config.dtype == "fp16":
+        torch_dtype = torch.float16
+    else:
+        torch_dtype = torch.float32
 
     print(f"[Surtur] Loading {config.model_id} on {device}...")
-    model = freeze.load_model(config.model_id)
-    model.to(device)
+    device_map = {"": device} if device == "cuda" else None
+    model = freeze.load_model(config.model_id, dtype=torch_dtype, device_map=device_map)
 
     total_layers = len(freeze.get_layers(model))
     band = resolve_band(config.layer_spec, total_layers)

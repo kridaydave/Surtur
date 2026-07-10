@@ -28,6 +28,7 @@ class ArmConfig:
     grad_accum: int = 8
     lr: float = 5e-5
     dtype: str = "bf16"
+    run_id: Optional[str] = None
 
 
 def run_arm(arm_name: str, config: ArmConfig, seed: int) -> dict:
@@ -40,6 +41,12 @@ def run_arm(arm_name: str, config: ArmConfig, seed: int) -> dict:
     os.makedirs(ckpt_dir, exist_ok=True)
 
     start = time.time()
+    
+    import hashlib
+    # Compute config hash
+    config_str = f"{config.model_id}_{config.method}_{config.layer_spec}_{config.dataset_path}_{config.max_steps}_{config.batch_size}_{config.grad_accum}_{config.lr}_{config.dtype}"
+    config_hash = hashlib.sha256(config_str.encode()).hexdigest()[:16]
+    run_id = config.run_id if config.run_id else f"{arm_name}_seed_{seed}_{int(start)}"
 
     if arm_name in ("surtur", "full_ft"):
         spec = config.layer_spec if arm_name == "surtur" else "all"
@@ -67,6 +74,7 @@ def run_arm(arm_name: str, config: ArmConfig, seed: int) -> dict:
 
     elif arm_name in ("frozen", "untrained_ref"):
         model = freeze.load_model(config.model_id)
+        freeze.apply_freeze(model, [])
         trainable, total = freeze.count_params(model)
         model.save_pretrained(ckpt_dir)
         tokenizer = AutoTokenizer.from_pretrained(config.model_id)
@@ -76,8 +84,34 @@ def run_arm(arm_name: str, config: ArmConfig, seed: int) -> dict:
         del model, tokenizer
 
     elapsed = time.time() - start
+    
+    # Write to runs.jsonl
+    runs_jsonl_path = os.path.join(config.output_dir_base, "runs.jsonl")
+    os.makedirs(config.output_dir_base, exist_ok=True)
+    
+    import json
+    import db
+    db.init_db()
+    run_entry = {
+        "run_id": run_id,
+        "arm": arm_name,
+        "seed": seed,
+        "model_id": config.model_id,
+        "method": config.method,
+        "layer_spec": config.layer_spec if arm_name == "surtur" else ("all" if arm_name == "full_ft" else "none"),
+        "config_hash": config_hash,
+        "ckpt_path": ckpt_dir,
+        "duration_sec": elapsed,
+        "trainable_params": trainable,
+        "total_params": total,
+        "status": "completed"
+    }
+    db.save_run(run_entry)
+    with open(runs_jsonl_path, "a") as f:
+        f.write(json.dumps(run_entry) + "\n")
 
     return {
+        "run_id": run_id,
         "arm": arm_name,
         "seed": seed,
         "duration": elapsed,
