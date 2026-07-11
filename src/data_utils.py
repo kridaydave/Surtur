@@ -19,7 +19,8 @@ def sha256_of_file(path: str) -> str:
 
 
 def load_manifest(data_dir: str = "data") -> dict:
-    manifest_path = os.path.join(data_dir, "MANIFEST.json")
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    manifest_path = os.path.join(project_root, data_dir, "MANIFEST.json")
     if not os.path.exists(manifest_path):
         return {}
     with open(manifest_path) as f:
@@ -35,7 +36,11 @@ def verify(path: str, data_dir: str = "data") -> str:
             f"{filename} not in {data_dir}/MANIFEST.json. "
             f"Add it with sha256 and a version label before use."
         )
-    actual = sha256_of_file(path)
+    
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    full_path = os.path.join(project_root, path) if not os.path.isabs(path) else path
+    
+    actual = sha256_of_file(full_path)
     expected = entry["sha256"]
     if actual != expected:
         raise ValueError(

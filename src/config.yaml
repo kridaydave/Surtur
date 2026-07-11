@@ -2,7 +2,7 @@
 # Arms: A (surtur), B (full_ft), C (frozen), D (untrained_ref)
 # Adjust model_id, dataset_path, and seeds for your run.
 
-model_id: "facebook/opt-125m"
+model_id: "Qwen/Qwen2.5-1.5B"
 method: "sft"
 layer_spec: "last_4"
 dataset_path: "data/p0_train.jsonl"

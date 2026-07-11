@@ -54,6 +54,9 @@ def load_tokenizer(model_id: str) -> AutoTokenizer:
 
 
 def build_dataset(dataset_path: str):
+    if not os.path.isabs(dataset_path):
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        dataset_path = os.path.join(project_root, dataset_path)
     return load_dataset("json", data_files=dataset_path, split="train")
 
 
