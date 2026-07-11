@@ -110,7 +110,8 @@ def eval_cmd(args):
         ckpt_path = run["ckpt_path"]
         seed = run["seed"]
         print(f"Evaluating run {run_id} (checkpoint: {ckpt_path}, seed: {seed})")
-        if not os.path.exists(ckpt_path):
+        is_hf_model = len(ckpt_path.split("/")) == 2 and not ckpt_path.startswith(".")
+        if not os.path.exists(ckpt_path) and not is_hf_model:
             print(f"Warning: Checkpoint path {ckpt_path} does not exist. Skipping.")
             continue
             

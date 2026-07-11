@@ -142,6 +142,6 @@ def run(config: TrainingConfig) -> None:
 
     print("[Surtur] Starting training...")
     trainer.train(resume_from_checkpoint=config.resume)
-    model.save_pretrained(config.output_dir)
+    model.save_pretrained(config.output_dir, max_shard_size="10GB")
     tokenizer.save_pretrained(config.output_dir)
     print(f"[Surtur] Done. Checkpoint saved to {config.output_dir}")

@@ -73,15 +73,10 @@ def run_arm(arm_name: str, config: ArmConfig, seed: int) -> dict:
         train_run(tc)
 
     elif arm_name in ("frozen", "untrained_ref"):
+        ckpt_dir = config.model_id
         model = freeze.load_model(config.model_id)
-        freeze.apply_freeze(model, [])
         trainable, total = freeze.count_params(model)
-        model.save_pretrained(ckpt_dir)
-        tokenizer = AutoTokenizer.from_pretrained(config.model_id)
-        if tokenizer.pad_token is None:
-            tokenizer.pad_token = tokenizer.eos_token
-        tokenizer.save_pretrained(ckpt_dir)
-        del model, tokenizer
+        del model
 
     elapsed = time.time() - start
     
