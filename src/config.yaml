@@ -17,5 +17,5 @@ max_steps: 10
 batch_size: 4
 grad_accum: 8
 lr: 5e-5
-dtype: "bf16"
+dtype: "fp16"
 
