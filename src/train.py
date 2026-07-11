@@ -76,7 +76,7 @@ def run(config: TrainingConfig) -> None:
     if config.dtype == "bf16":
         torch_dtype = torch.bfloat16
     elif config.dtype == "fp16":
-        torch_dtype = torch.float16
+        torch_dtype = torch.float32  # Load in float32 for GradScaler compatibility
     else:
         torch_dtype = torch.float32
 
