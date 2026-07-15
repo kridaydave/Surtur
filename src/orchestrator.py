@@ -75,8 +75,14 @@ def run_arm(arm_name: str, config: ArmConfig, seed: int) -> dict:
     elif arm_name in ("frozen", "untrained_ref"):
         ckpt_dir = config.model_id
         model = freeze.load_model(config.model_id)
-        trainable, total = freeze.count_params(model)
+        _, total = freeze.count_params(model)
+        trainable = 0
         del model
+        import gc
+        import torch
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
     elapsed = time.time() - start
     

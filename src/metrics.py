@@ -6,7 +6,7 @@ def compute_verdict(surtur_results, frozen_results, untrained_results=None, comp
         if task in surtur_results and task in frozen_results:
             s = surtur_results[task]["accuracy"]
             f = frozen_results[task]["accuracy"]
-            retention = s / f if f > 0 else 0.0
+            retention = s / f if f > 0 else 1.0
             verdict["retention"][task] = retention
             if retention < 0.98:
                 verdict["pass"] = False

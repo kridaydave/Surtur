@@ -32,7 +32,10 @@ def test_orchestrator_smoke():
     assert arms_seen == {"surtur", "frozen"}, f"Unexpected arms: {arms_seen}"
 
     for r in results:
-        assert os.path.isdir(r["checkpoint"]), f"Missing checkpoint: {r['checkpoint']}"
+        if r["arm"] in ("surtur", "full_ft"):
+            assert os.path.isdir(r["checkpoint"]), f"Missing checkpoint: {r['checkpoint']}"
+        else:
+            assert r["checkpoint"] == config.model_id
         assert r["duration"] >= 0
 
     surtur_r = next(r for r in results if r["arm"] == "surtur")

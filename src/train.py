@@ -61,9 +61,9 @@ def build_dataset(dataset_path: str):
 
 
 def run(config: TrainingConfig) -> None:
-    set_seed(int(config.seed))
     if os.environ.get("SURTUR_DETERMINISTIC") == "1":
         enable_deterministic()
+    set_seed(int(config.seed))
         
     if config.dataset_path:
         import data_utils
@@ -76,7 +76,7 @@ def run(config: TrainingConfig) -> None:
     if config.dtype == "bf16":
         torch_dtype = torch.bfloat16
     elif config.dtype == "fp16":
-        torch_dtype = torch.float32  # Load in float32 for GradScaler compatibility
+        torch_dtype = torch.float16
     else:
         torch_dtype = torch.float32
 

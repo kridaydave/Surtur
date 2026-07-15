@@ -17,12 +17,14 @@ class GradientInsulationCallback(TrainerCallback):
         frozen_leaked = []
         trainable_count = 0
         for name, param in model.named_parameters():
+            if param.requires_grad:
+                if param.grad is not None:
+                    trainable_count += 1
+                continue
             if param.grad is None:
                 continue
             grad_norm = float(param.grad.norm().item())
-            if param.requires_grad:
-                trainable_count += 1
-            elif grad_norm > self.epsilon:
+            if grad_norm > self.epsilon:
                 frozen_leaked.append((name, grad_norm))
 
         if frozen_leaked:

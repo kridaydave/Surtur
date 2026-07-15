@@ -58,6 +58,20 @@ class TestSurturRewardsAndHarness(unittest.TestCase):
         # Incorrect
         self.assertEqual(math_correctness_reward_fn([], ["The answer is 10"], ["42"])[0], 0.0)
 
+        # LaTeX and non-numeric/multiple choice answers
+        self.assertEqual(math_correctness_reward_fn([], ["The answer is \\boxed{A}"], ["A"])[0], 1.0)
+        self.assertEqual(math_correctness_reward_fn([], ["The answer is \\boxed{\\frac{1}{2}}"], ["\\frac{1}{2}"])[0], 1.0)
+
+    def test_p_grpo_format_reward(self):
+        # 1. Correct answer with perfect format -> 1.0
+        self.assertEqual(p_grpo_format_reward_fn([], ["<think> logic </think> \\boxed{42}"], ["42.0"])[0], 1.0)
+        
+        # 2. Correct answer with no think tags -> 0.0
+        self.assertEqual(p_grpo_format_reward_fn([], ["The answer is \\boxed{42}"], ["42.0"])[0], 0.0)
+        
+        # 3. Incorrect answer -> 0.0
+        self.assertEqual(p_grpo_format_reward_fn([], ["<think> logic </think> \\boxed{10}"], ["42.0"])[0], 0.0)
+
     def test_tag_spam_penalty(self):
         # No bad tags
         self.assertEqual(tag_spam_penalty_fn([], ["<think> valid </think> Answer: 42"])[0], 0.0)

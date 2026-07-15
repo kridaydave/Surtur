@@ -51,7 +51,8 @@ def main():
             continue
             
         print(f"[Eval Driver] Evaluating run {run_id} at {ckpt_path} (missing: {missing_sets})...")
-        is_hf_model = len(ckpt_path.split("/")) == 2 and not ckpt_path.startswith(".")
+        norm_path = os.path.normpath(ckpt_path)
+        is_hf_model = len(norm_path.split(os.sep)) == 2 and not ckpt_path.startswith(".")
         if not os.path.exists(ckpt_path) and not is_hf_model:
             print(f"[Eval Driver] WARNING: Checkpoint path {ckpt_path} not found. Skipping.")
             continue

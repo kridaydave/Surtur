@@ -63,8 +63,8 @@ def render(retention: dict, alignment_gain: dict, compute_ratio: float,
         for i, (domain, val) in enumerate(items):
             x = 100 + i * 140
             val_pct = val * 100 if abs(val) <= 1.0 else val
-            y = 180 - val_pct * 6
-            h = 180 - y
+            h = abs(val_pct) * 6
+            y = 180 - val_pct * 6 if val_pct >= 0 else 180
             passed = val > 0
             cls = "bar" if passed else "bar bar-fail"
             pct = f"{val_pct:+.1f}%"
@@ -137,15 +137,15 @@ def render(retention: dict, alignment_gain: dict, compute_ratio: float,
     )
 
     verdict_class = "verdict-pass" if verdict == "PASS" else "verdict-fail"
-    html = html.replace('id="verdict" class="verdict-value verdict-pass">PASS',
-                        f'id="verdict" class="verdict-value {verdict_class}">{verdict}')
+    html = html.replace('class="verdict-value verdict-pass" id="verdict">PASS',
+                        f'class="verdict-value {verdict_class}" id="verdict">{verdict}')
 
     if failures:
         detail = " · ".join(failures) if verdict == "FAIL" else "All gates cleared."
     else:
-        detail = "All three gates cleared: retention ≥ 0.98 per domain · alignment gain > 0 on both · compute ratio ≤ 0.30."
+        detail = "All three gates cleared: retention ≥ 0.98 per domain · alignment gain &gt; 0 on both · compute ratio ≤ 0.30."
     html = html.replace(
-        'All three gates cleared: retention ≥ 0.98 per domain · alignment gain &gt; 0 on both · compute ratio ≤ 0.30.',
+        'All three gates cleared: retention ≥ 0.98 per domain · alignment gain &amp;gt; 0 on both · compute ratio ≤ 0.30.',
         detail
     )
 

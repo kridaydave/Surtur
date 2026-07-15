@@ -4,6 +4,7 @@ import json
 import sqlite3
 import subprocess
 import re
+import threading
 from fastapi import FastAPI, BackgroundTasks, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -14,6 +15,8 @@ from typing import Optional, List
 sys.path.insert(0, os.path.dirname(__file__))
 
 import db
+
+db_lock = threading.Lock()
 
 app = FastAPI(title="Surtur Web Dashboard Server")
 
@@ -87,20 +90,22 @@ def execute_run(run_id: str, req: RunRequest):
             )
             process.wait()
             
-        conn = db.get_db()
-        cursor = conn.cursor()
-        if process.returncode != 0:
-            cursor.execute("UPDATE runs SET status = 'failed' WHERE run_id = ?", (run_id,))
-        else:
-            cursor.execute("UPDATE runs SET status = 'completed' WHERE run_id = ?", (run_id,))
-        conn.commit()
-        conn.close()
+        with db_lock:
+            conn = db.get_db()
+            cursor = conn.cursor()
+            if process.returncode != 0:
+                cursor.execute("UPDATE runs SET status = 'failed' WHERE run_id = ?", (run_id,))
+            else:
+                cursor.execute("UPDATE runs SET status = 'completed' WHERE run_id = ?", (run_id,))
+            conn.commit()
+            conn.close()
     except Exception as e:
-        conn = db.get_db()
-        cursor = conn.cursor()
-        cursor.execute("UPDATE runs SET status = 'failed' WHERE run_id = ?", (run_id,))
-        conn.commit()
-        conn.close()
+        with db_lock:
+            conn = db.get_db()
+            cursor = conn.cursor()
+            cursor.execute("UPDATE runs SET status = 'failed' WHERE run_id = ?", (run_id,))
+            conn.commit()
+            conn.close()
         with open(log_path, "a") as log_file:
             log_file.write(f"\n[Server Error] Run failed with exception: {e}\n")
 
@@ -173,17 +178,18 @@ def launch_run(req: RunRequest, background_tasks: BackgroundTasks):
     config_str = f"{req.model_id}_{req.method}_{req.layer_spec}_{req.dataset_path}_{req.max_steps}_{req.batch_size}_{req.grad_accum}_{req.lr}_bf16"
     config_hash = hashlib.sha256(config_str.encode()).hexdigest()[:16]
     
-    conn = db.get_db()
-    cursor = conn.cursor()
-    cursor.execute("""
-    INSERT INTO runs (run_id, arm, seed, model_id, method, layer_spec, config_hash, ckpt_path, duration_sec, trainable_params, total_params, status)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        run_id, req.arm, req.seed, req.model_id, req.method, req.layer_spec, config_hash,
-        os.path.join("surtur_out", f"arm_{req.arm}", f"seed_{req.seed}"), 0.0, 0, 0, "running"
-    ))
-    conn.commit()
-    conn.close()
+    with db_lock:
+        conn = db.get_db()
+        cursor = conn.cursor()
+        cursor.execute("""
+        INSERT INTO runs (run_id, arm, seed, model_id, method, layer_spec, config_hash, ckpt_path, duration_sec, trainable_params, total_params, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            run_id, req.arm, req.seed, req.model_id, req.method, req.layer_spec, config_hash,
+            os.path.join("surtur_out", f"arm_{req.arm}", f"seed_{req.seed}"), 0.0, 0, 0, "running"
+        ))
+        conn.commit()
+        conn.close()
     
     background_tasks.add_task(execute_run, run_id, req)
     
@@ -255,8 +261,6 @@ def get_verdict():
     if "surtur" not in results or "frozen" not in results:
         return {"status": "incomplete", "message": "Surtur and Frozen baseline runs are required to compute verdict."}
         
-    import sys
-    sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
     from metrics import compute_verdict
     
     surtur_accs = {k: v for k, v in results["surtur"].items() if k not in ["duration_sec", "trainable_params", "total_params"]}
@@ -335,7 +339,7 @@ def _phase_state():
                 "M0": {"done": m0_done, "label": "Eval suite + thresholds defined", "phase": "Pre-P0"},
                 "M1": {"done": m1_done, "label": "Core claim validated", "phase": "P0"},
                 "M2": {"done": m2_done, "label": "Reusable runner ships", "phase": "P1"},
-                "M3": {"done": m2_done, "label": "Results reproducible 1-command", "phase": "P2"},
+                "M3": {"done": m3_done, "label": "Results reproducible 1-command", "phase": "P2"},
                 "M4": {"done": m3_done, "label": "Dashboard launch", "phase": "P3"},
                 "M5": {"done": False, "label": "Surtur is default", "phase": "P4"},
             },

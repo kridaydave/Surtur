@@ -371,11 +371,37 @@ def intercept_exit():
     finally:
         sys.exit = original_exit
 
+_local = threading.local()
+
+class ThreadLocalStreamWrapper:
+    def __init__(self, original_stream):
+        self._original = original_stream
+
+    def write(self, text):
+        target = getattr(_local, "redirect_target", None)
+        if target is not None:
+            target.write(text)
+        else:
+            self._original.write(text)
+
+    def flush(self):
+        target = getattr(_local, "redirect_target", None)
+        if target is not None:
+            target.flush()
+        else:
+            self._original.flush()
+
+    def __getattr__(self, name):
+        return getattr(self._original, name)
+
+if not isinstance(sys.stdout, ThreadLocalStreamWrapper):
+    sys.stdout = ThreadLocalStreamWrapper(sys.stdout)
+if not isinstance(sys.stderr, ThreadLocalStreamWrapper):
+    sys.stderr = ThreadLocalStreamWrapper(sys.stderr)
+
 class OutputRedirector:
     def __init__(self, buffer_list):
         self.buffer_list = buffer_list
-        self.stdout = sys.stdout
-        self.stderr = sys.stderr
 
     def write(self, text):
         if text:
@@ -388,15 +414,12 @@ class OutputRedirector:
 @contextlib.contextmanager
 def redirect_output(buffer_list):
     redirector = OutputRedirector(buffer_list)
-    old_stdout = sys.stdout
-    old_stderr = sys.stderr
-    sys.stdout = redirector
-    sys.stderr = redirector
+    old_target = getattr(_local, "redirect_target", None)
+    _local.redirect_target = redirector
     try:
         yield
     finally:
-        sys.stdout = old_stdout
-        sys.stderr = old_stderr
+        _local.redirect_target = old_target
 
 def get_db_stats():
     conn = db.get_db()

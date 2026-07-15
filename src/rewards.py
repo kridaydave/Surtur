@@ -33,9 +33,9 @@ def extract_xml_answer(text: str) -> str:
     text_clean = text.replace(",", "")
 
     # 1. Look for \boxed{...}
-    boxed_match = re.search(r"\\boxed\{([0-9.-]+)\}", text_clean)
+    boxed_match = re.search(r"\\boxed\{((?:[^{}]+|\{(?:[^{}]+|\{[^{}]*\})*\})*)\}", text_clean)
     if boxed_match:
-        return boxed_match.group(1)
+        return boxed_match.group(1).strip()
 
     # 2. Look for the last number in the text
     numbers = re.findall(r"-?\d+(?:\.\d+)?", text_clean)
@@ -156,7 +156,7 @@ def p_grpo_format_reward_fn(
         elif num_start == 0 and num_end == 1:
             rewards.append(0.2)
         else:
-            rewards.append(0.2)
+            rewards.append(0.0)
 
     return rewards
 
